@@ -1,8 +1,7 @@
 import argparse
 import time
 import requests
-from datetime import datetime, timezone
-import json
+from datetime import datetime
 from retrying import retry
 from urllib.parse import urlencode
 import csv
@@ -52,7 +51,7 @@ def interestingpart(s):
 
 
 def deleted(s):
-    return s["selftext"] == "[deleted]"
+    return s["selftext"] == "[deleted]" or s["selftext"] == "[removed]"
 
 
 def write(filename, s):
@@ -89,11 +88,12 @@ def main(args):
     verbose(f"Writing to {args.outputcsv}")
 
     b = args.before
+    stride = args.stride
     done = False
 
     while not done:
         # Scrape submissions timestamped within [a,b]
-        a = b - args.stride
+        a = b - stride
         if a <= args.after:
             a = args.after
             done = True
@@ -119,10 +119,14 @@ def main(args):
             done = True
 
         # Setup for next iteration
-        if len(subs) < MAXSUBS:
+        n = len(subs)
+        if n < MAXSUBS:
             b = a
+            if n == 0:
+                verbose("No submissions found: doubling stride")
+                stride *= 2
         else:
-            verbose("Reached MAXSUBS, continuing from last submission")
+            verbose("Reached MAXSUBS: continuing from last submission")
             b = min([int(s["created_utc"]) for s in subs]) - 1
         continue
 
