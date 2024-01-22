@@ -1,17 +1,29 @@
 # Training an LLM on reddit data
 
+## Datasets
+
+- [x] [1m confessions](https://www.kaggle.com/datasets/pavellexyr/one-million-reddit-confessions/data): Looks good, downloaded zip file
+- [x] [convokit-reddit](https://convokit.cornell.edu/documentation/subreddit.html): Looks good, downloadable via Python API
+- [?] [tf-reddit](https://www.tensorflow.org/datasets/catalog/reddit): Could be good; untested
+- [/] [reddit self-post](https://www.kaggle.com/datasets/mswarbrickjones/reddit-selfposts): Bad choice of subreddits for our purposes ... but good notebooks on Kaggle
+- [/] [reddit 2014 graph](https://paperswithcode.com/dataset/reddit): Unusuable
+- [/] [webis/tldr-17](https://huggingface.co/datasets/webis/tldr-17): Bad choice of subreddits for our purposes ... but good for summarization (metathoughts)
+- [?] [Reddit comments/submissions 2005-06 to 2023-12](https://academictorrents.com/details/9c263fc85366c1ef8f5bb9da0203f4c8c8db75f4): Full scrape, 2 TB.
+  - [More of these](https://academictorrents.com/browse.php?search=stuck_in_the_matrix)
+  - [API service to query this data](https://www.pullpush.io/): Very good but site is unstable
+
 ## Good subreddits...
 
 ... are those containing posts with a stream-of-consciousness (SOC) feel.
 
 Good starting point is 
-- https://www.reddit.com/r/letters/
+- [x] https://www.reddit.com/r/letters/
 
 From there, see related subreddits of r/letters at https://anvaka.github.io/map-of-reddit/?x=23033.519670875172&y=19494.765659988872&z=50&v=2&q=letters:
 
 - https://www.reddit.com/r/LoveLetters/
 - https://www.reddit.com/r/unsent/
-- https://www.reddit.com/r/Diary/ => very good
+- [x] https://www.reddit.com/r/Diary/ => very good
 - https://www.reddit.com/r/LibraryofBabel/ => funky, tasteful noise
 - https://www.reddit.com/r/ShrugLifeSyndicate/ => weird noise
 
@@ -27,8 +39,9 @@ We can rank these posts by embedding them and dotting them with embeddings of ex
 Posts are naturally structured in <thought>...</thought> and good length.
 
 Other filtering:
-- Exclude mentions of "Reddit"
+- Exclude mentions of "Reddit", "OP"
 - Excluding links
+- Excluding mentions of the years or date
 - See: https://www.kaggle.com/code/fazilbtopal/nlp-data-preprocessing#Cleaning-Text-Data
 
 And perhaps encourage parentheses if we go for that scheme
