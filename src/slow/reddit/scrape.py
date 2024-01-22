@@ -78,7 +78,7 @@ def filesize_in_gb(filename):
         file_size_bytes = os.path.getsize(filename)
         return file_size_bytes / (1024**3)
     else:
-        return 0.
+        return 0.0
 
 
 utc = datetime.utcfromtimestamp
@@ -123,7 +123,7 @@ def main(args):
             b = a
         else:
             verbose("Reached MAXSUBS, continuing from last submission")
-            b = min([s["created_utc"] for s in subs]) - 1
+            b = min([int(s["created_utc"]) for s in subs]) - 1
         continue
 
     return 0
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--after",
         type=int,
-        default=1137452400, # First post on Reddit
+        default=1137452400,  # First post on Reddit
         help="Scrape submissions after this UTC epoch date",
     )
     parser.add_argument(
