@@ -51,8 +51,8 @@ def interestingpart(s):
     return OrderedDict((c, s.get(c, None)) for c in COLUMNS)
 
 
-def deleted(s):
-    return s["selftext"] == "[deleted]" or s["selftext"] == "[removed]"
+def deleted(text):
+    return text.lower() in {"[removed]", "[deleted]", "[deleted by user]"}
 
 
 def write(filename, s):
@@ -108,7 +108,7 @@ def main(args):
         subs = response["data"]
         for raws in subs:
             s = interestingpart(raws)
-            if not deleted(s):
+            if not deleted(s["selftext"]):
                 write(args.outputcsv, s)
                 verbose((" " * 3 + s["title"])[:50])
 
