@@ -1,12 +1,17 @@
 import argparse
 import pandas as pd
-import textwrap
 from textacy import preprocessing
 from textacy.preprocessing import normalize, replace, remove
 from functools import partial
 from markdown import markdown as markdown_to_html
 import re
 import string
+
+
+def remove_enclosing_symbols_and_whitespace(
+    text, pattern=re.compile(r"^[\s\W]+|[\s\W]+$")
+):
+    return pattern.sub("", text)
 
 
 def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):
@@ -87,28 +92,88 @@ normalize = preprocessing.make_pipeline(
     maybecollapse,
 )
 
-def firststage(df):
-    df = df[df["selftext"] != "[removed]"]
-    df = df[df[["selftext", "title"]].notnull().all(1)]
-    df.fillna(0, inplace=True)
+
+def read(inputcsv):
+    """Read CSV file without treating empty strings as NaN and with custom converters"""
+
+    def convert_to_int_or_zero(value):
+        return int(value) if value != "" else 0
+
+    column_converters = {
+        "ups": convert_to_int_or_zero,
+        "downs": convert_to_int_or_zero,
+    }
+
+    df = pd.read_csv(
+        inputcsv,
+        keep_default_na=False,
+        na_filter=False,
+        converters=column_converters,
+    )
+
     return df
 
 
-def secondstage(df):
-    df["selftext"] = df["text"].progress_apply(impurity, min_len=10)
+def firststage(df):
+    """Cleanup deleted submission titles and/or selftexts. Do not accept empty selftexts (empty titles are OK)"""
+    from scrape import deleted
 
-    # remove collapsed
-    return
+    def collapse_if_deleted(text):
+        return "" if deleted(text) else text
+
+    df["title"] = df["title"].apply(collapse_if_deleted)
+    df["selftext"] = df["selftext"].apply(collapse_if_deleted)
+
+    nonempty = df["selftext"].str.len() > 0
+    df = df[nonempty]
+
+    return df
+
+
+def secondstage(df, show_progress):
+    def embed_title_in_selftext(row):
+        title = remove_enclosing_symbols_and_whitespace(row["title"])
+        selftext = row["selftext"]
+        return f"[{title}] {selftext}" if title else selftext
+
+    raw = df.apply(embed_title_in_selftext, axis=1)
+
+    if show_progress:
+        try:
+            from tqdm import tqdm
+
+            tqdm.pandas()
+            df["normalized"] = raw.progress_apply(normalize)
+        except ImportError:
+            df["normalized"] = raw.apply(normalize)
+    else:
+        df["normalized"] = raw.apply(normalize)
+
+    return df
+
+
+def write(df, outputcsv):
+    df.to_csv(outputcsv, index=False, mode="w")
+
+
+def void(*_, **__):
+    pass
 
 
 def main(args):
     verbose = print if args.verbose else void
 
     verbose(f"Reading {args.inputcsv}")
-    df = pd.read_csv(args.inputcsv)
+    df = read(args.inputcsv)
 
-    verbose("Removing empty posts and normalizing up/down counts")
+    verbose("Removing empty posts")
     df = firststage(df)
+
+    verbose("Normalizing")
+    df = secondstage(df, show_progress=args.verbose)
+
+    verbose(f"Writing result to {args.outputcsv}")
+    write(df, args.outputcsv)
 
     return 0
 
@@ -116,18 +181,18 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument("inputcsv", help="Clean this CSV")
+    parser.add_argument("inputcsv", help="Normalize this CSV")
     parser.add_argument(
         "outputcsv",
         nargs="?",
         default=None,
-        help="Append cleaned submissions to this CSV file, or create it if it does not exist (default: {inputcsv}.cleaned)",
+        help="Write out result to this CSV file and replace it if it already exists (default: {inputcsv}.normalized)",
     )
     parser.add_argument("--verbose", action="store_true", help="Print verbose output")
 
     # Parse the command line arguments
     args = parser.parse_args()
     if args.outputcsv is None:
-        args.outputcsv = args.inputcsv + ".cleaned"
+        args.outputcsv = args.inputcsv + ".normalized"
 
     exit(main(args))
