@@ -1,3 +1,4 @@
+"""Scrape submissions (posts without the comments) from a subreddit"""
 import argparse
 import time
 import requests
@@ -134,9 +135,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Scrape submissions (posts without the comments) from a subreddit"
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "subreddit", help="Which subreddit to scrape (without the r/ prefix)"
