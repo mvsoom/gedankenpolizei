@@ -3,3 +3,4 @@ data/
 subreddit/
 assets/
 *.ipynb
+__pycache__/
