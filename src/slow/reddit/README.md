@@ -24,13 +24,15 @@ From there, see related subreddits of r/letters at https://anvaka.github.io/map-
 - https://www.reddit.com/r/LoveLetters/
 - https://www.reddit.com/r/unsent/
 - [x] https://www.reddit.com/r/Diary/ => very good
-- https://www.reddit.com/r/LibraryofBabel/ => funky, tasteful noise
+- [ ] https://www.reddit.com/r/LibraryofBabel/ => funky, tasteful noise
 - https://www.reddit.com/r/ShrugLifeSyndicate/ => weird noise
 
 Other gems:
 
-- https://www.reddit.com/r/venting/
-- https://www.reddit.com/r/self/
+- [ ] https://www.reddit.com/r/venting/
+- [x] https://www.reddit.com/r/self/
+
+python scrape.py Life subreddit/Life.csv --maxfsize 10 --verbose
 
 ## Filtering pipeline
 
@@ -42,11 +44,28 @@ Other filtering:
 - Exclude mentions of "Reddit", "OP"
 - Excluding links
 - Excluding mentions of the years or date
+- deMarkdown: \[ etc
 - See: https://www.kaggle.com/code/fazilbtopal/nlp-data-preprocessing#Cleaning-Text-Data
 
 And perhaps encourage parentheses if we go for that scheme
 
 We can use the post titles as seed/summaries/...! In the training data we could for example use them as metathoughts
+
+## Sentenze tokenization
+
+For training we can do sentence tokenization using spaCy as in below, with sentence separator |:
+
+```
+I just finished the Fountainhead by Ayn Rand.|Highly recommend.|It
+ speaks of the collectivist mindset and it's flaws shown throughout hi
+story.|Our natural disposition is to be selfish, so if the ideal of 
+selflessness is held as the highest moral virtue, humans will naturall
+y think of themselves as unclean/unworthy/etc.|Helping out the colle
+ctive is undoubtedly a virtue, but it's a slippery slope down the path
+ of losing oneself. ...
+```
+
+This way the program outputs delineated sentences, and we dont print out the | symbols
 
 ## Other
 
