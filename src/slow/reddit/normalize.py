@@ -1,3 +1,4 @@
+"""Normalize a scraped CSV file and size to a more robust HDF5 file"""
 import argparse
 import pandas as pd
 from textacy import preprocessing
@@ -134,7 +135,7 @@ def secondstage(df, show_progress):
     def embed_title_in_selftext(row):
         title = remove_enclosing_symbols_and_whitespace(row["title"])
         selftext = row["selftext"]
-        return f"[{title}] {selftext}" if title else selftext
+        return f"[{title}.] {selftext}" if title else selftext
 
     raw = df.apply(embed_title_in_selftext, axis=1)
 
@@ -152,8 +153,8 @@ def secondstage(df, show_progress):
     return df
 
 
-def write(df, outputcsv):
-    df.to_csv(outputcsv, index=False, mode="w")
+def write(df, outputh5):
+    df.to_hdf(outputh5, key="df", mode="w")
 
 
 def void(*_, **__):
@@ -172,8 +173,8 @@ def main(args):
     verbose("Normalizing")
     df = secondstage(df, show_progress=args.verbose)
 
-    verbose(f"Writing result to {args.outputcsv}")
-    write(df, args.outputcsv)
+    verbose(f"Writing result to {args.outputh5}")
+    write(df, args.outputh5)
 
     return 0
 
@@ -183,16 +184,20 @@ if __name__ == "__main__":
 
     parser.add_argument("inputcsv", help="Normalize this CSV")
     parser.add_argument(
-        "outputcsv",
+        "outputh5",
         nargs="?",
         default=None,
-        help="Write out result to this CSV file and replace it if it already exists (default: {inputcsv}.normalized)",
+        help="Write out result to this HDF5 file and replace it if it already exists (default: base on {inputcsv})",
     )
     parser.add_argument("--verbose", action="store_true", help="Print verbose output")
 
     # Parse the command line arguments
     args = parser.parse_args()
-    if args.outputcsv is None:
-        args.outputcsv = args.inputcsv + ".normalized"
+    if args.outputh5 is None:
+        args.outputh5 = (
+            args.inputcsv[:-4]
+            if args.inputcsv.lower().endswith(".csv")
+            else args.inputcsv
+        ) + ".normalized"
 
     exit(main(args))
