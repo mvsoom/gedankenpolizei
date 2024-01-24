@@ -7,6 +7,7 @@ from functools import partial
 from markdown import markdown as markdown_to_html
 import re
 import string
+import html
 
 
 def remove_enclosing_symbols_and_whitespace(
@@ -68,6 +69,7 @@ normalize = preprocessing.make_pipeline(
     remove_markdown_urls,
     markdown_to_html,
     remove.html_tags,
+    html.unscape,
     # Handle Reddit bug; see https://www.reddit.com/r/Infinity_For_Reddit/comments/kz7keb/bug_x200b_is_being_rendered_as_plain_text_instead
     remove_unicode_sequences,
     # Handle generic stuff
