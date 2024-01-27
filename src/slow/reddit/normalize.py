@@ -69,7 +69,7 @@ normalize = preprocessing.make_pipeline(
     remove_markdown_urls,
     markdown_to_html,
     remove.html_tags,
-    html.unscape,
+    html.unescape,
     # Handle Reddit bug; see https://www.reddit.com/r/Infinity_For_Reddit/comments/kz7keb/bug_x200b_is_being_rendered_as_plain_text_instead
     remove_unicode_sequences,
     # Handle generic stuff
