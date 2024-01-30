@@ -25,6 +25,7 @@ From there, see related subreddits of r/letters at https://anvaka.github.io/map-
 - https://www.reddit.com/r/unsent/
 - [x] https://www.reddit.com/r/Diary/ => very good
 - [ ] https://www.reddit.com/r/LibraryofBabel/ => funky, tasteful noise
+- [ ] https://www.reddit.com/r/LibraryofBabel/ => funky, tasteful noise
 - https://www.reddit.com/r/ShrugLifeSyndicate/ => weird noise
 
 Other gems:
