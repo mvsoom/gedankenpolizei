@@ -34,6 +34,32 @@ Other gems:
 
 python scrape.py Life subreddit/Life.csv --maxfsize 10 --verbose
 
+## Vetting
+
+Mark as negative => more signal
+
+Possible improvements to filter on (to remove or replace by ellipsis):
+- Names (Christine, Paul)
+- "post", "repost", "front page" (the literal word), "account"
+- "comment"
+- "title"
+- "mom", "dad"
+- "moderator", "mods"
+- "edit:"
+- "(17f), (50M)" etc.
+- "20yo" etc.
+- "I'm 19" etc.
+- "Discord", "4chan"
+- "hello everyone", "you guys"
+- "spencer"
+- "school", "college", "undergrad"
+- "years old"
+
+Or just mark as negative (-1) examples
+
+Replace \s+ by ...? (if repeated whitespace)
+Many paragraphs don't end with punctuation (the poems etc)
+
 ## Filtering pipeline
 
 We can rank these posts by embedding them and dotting them with embeddings of exemplary SOCs.
@@ -46,6 +72,7 @@ Other filtering:
 - Excluding mentions of the years or date
 - deMarkdown: \[ etc
 - See: https://www.kaggle.com/code/fazilbtopal/nlp-data-preprocessing#Cleaning-Text-Data
+
 
 And perhaps encourage parentheses if we go for that scheme
 
@@ -66,6 +93,20 @@ ctive is undoubtedly a virtue, but it's a slippery slope down the path
 ```
 
 This way the program outputs delineated sentences, and we dont print out the | symbols
+
+## Sequence classification
+
+into good and bad posts:
+
+https://medium.com/@lukas.hauzenberger/multilabel-classification-using-mistral-7b-on-a-single-gpu-with-quantization-and-lora-8f848b5237f3
+
+can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
+
+https://stackoverflow.com/questions/69907682/what-are-differences-between-automodelforsequenceclassification-vs-automodel
+
+![Alt text](assets/automodel.png)
+
+Concatenate posts by the same author sorted by date to get longer training sequences!
 
 ## Other
 
@@ -94,7 +135,44 @@ Leapfrog idea:
 - with simple energy measure and mfbod (mckay basian online detection)
 - if burst of movement, then inject description
 
+## Ideas
+
+Rewrite posts using an LLM; could also be good for copyright
+
+https://kaitchup.substack.com/p/phi-2-a-small-model-easy-to-fine
+
+contrastive learning
+
+Semi-supervised learning: A small amount of data that is correctly labeled data is used with large unlabeled data. The model makes predictions on the unlabeled data and where it is very sure, those samples are added to the next iteration of model training. It’s an iterative process in which models keep getting better with more and more trained data
+
+Triple loss
+
+https://huggingface.co/blog/Andyrasika/finetune-unsloth-qlora
+
+
+## Integrating stream in 3D
+Piping ffmpeg into the 3D engine is not directly possible in unreal or unity it seems
+
+But we can hack it by having ffmpeg pipe the output as if it is a webcam
+
+https://superuser.com/questions/411897/using-desktop-as-fake-webcam-on-linux
+
+Then:
+
+https://docs.unrealengine.com/4.27/en-US/WorkingWithMedia/IntegratingMedia/MediaFramework/HowTo/UsingWebCams/
+
+https://docs.unity3d.com/ScriptReference/WebCamTexture.html
+
+or better to use webgl:
+
+https://medium.com/docler-engineering/webgl-video-manipulation-8d0892b565b6
+
+
 ## Resources
 
 - https://www.reddit.com/r/LocalLLaMA/comments/17j1zcw/best_way_to_finetune_llm_based_on_daily_journals/
 - https://www.reddit.com/r/LocalLLaMA/comments/190xnij/can_a_rag_in_conjunction_with_an_llm_create_a/
+
+## Other random ideas
+
+- Generate ASCII art to represent images?
