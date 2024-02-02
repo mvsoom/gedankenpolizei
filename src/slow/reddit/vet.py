@@ -6,6 +6,7 @@ from sys import exit
 from lib import tui
 import re
 from tqdm import tqdm
+import warnings
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
 PLUS, MINUS, ENTER = ord("+"), ord("-"), ord("\n")
@@ -71,26 +72,6 @@ def stratified_sample(df, among):
 
 def unique_stratified_sample(df, among, vetdf, maxtries=100, matchcols=UID_COLUMNS):
     # https://stackoverflow.com/questions/68490691/faster-way-to-look-for-a-value-in-pandas-dataframe
-    if vetdf.empty:
-        return stratified_sample(df, among)
-
-    tries = 0
-    while tries < maxtries:
-        with open("tmpoutput", "a") as f:
-            print(tries, file=f, flush=True)
-        sample = stratified_sample(df, among)
-
-        match = (sample[matchcols].values == vetdf[matchcols].values).all(axis=1).any()
-
-        if not match:
-            return sample
-        else:
-            tries += 1
-
-    raise ValueError(f"Can't find unique stratified sample after {maxtries} tries")
-
-
-def _unique_stratified_sample(df, among, vetdf, maxtries=100, matchcols=UID_COLUMNS):
     if vetdf.empty:
         return stratified_sample(df, among)
 
@@ -196,7 +177,9 @@ def vet(args, df, vetdf):
             vetted_sample = sample.copy()
             vetted_sample["score"] = SCORE[c]
             vetdf = pd.concat([vetdf, vetted_sample])
-            vetdf.to_hdf(args.outputh5, key="df", mode="w")
+
+            with warnings.catch_warnings(action="ignore"):
+                vetdf.to_hdf(args.outputh5, key="df", mode="w")
 
             # Set stage for the next sample to be vetted
             sample, text = get_sample()
