@@ -1,5 +1,36 @@
 # Training an LLM on reddit data
 
+## GPUs
+
+runpods.io:
+- cheap,
+- notebooks,
+- [yes API deployment](https://github.com/runpod-workers/worker-template),
+- streaming
+- yes persistent storage
+
+lambdalabs:
+- cheaper,
+- notebooks,
+- NO API deployment
+- ~0.75 dollar/hour
+
+TIP:
+upload & download data/(finetuned) models to Huggingface: faster speeds
+
+
+## Training data
+
+concatenate posts following each other by embedding them to get a long text a la phi 1.5
+so two posts follow each other when they have the closest embedding
+
+use the classifier to find any SOC-like text, eg in a novel
+
+## other
+
+- headphones with TTS, maybe in Microsoft SAM voice or The Expressionless voice
+- generate images based on SOC for training data
+
 ## Datasets
 
 - [x] [1m confessions](https://www.kaggle.com/datasets/pavellexyr/one-million-reddit-confessions/data): Looks good, downloaded zip file
@@ -34,6 +65,39 @@ Other gems:
 - [x] https://www.reddit.com/r/self/
 
 python scrape.py Life subreddit/Life.csv --maxfsize 10 --verbose
+
+### Original subreddits
+
+DeepThoughts
+Diary
+Informal_Effect
+letters
+LibraryofBabel
+Life
+meaningoflife
+self
+ShittyPoetry
+UnsentNotes
+venting
+
+### New subreddits
+
+Mindfulness
+Antinatalism
+unpopularopinion
+sociopath
+NPD
+Ange
+MaladaptiveDreaming
+Dissociation
+misanthropy
+nihilism
+Existential_crisis
+ForeverAlone
+
+### Also: 2sentence subreddits
+
+Always has <[TITLE] ONESENTENCE> form ... to learn connection
 
 ## Vetting
 
@@ -100,6 +164,8 @@ This way the program outputs delineated sentences, and we dont print out the | s
 into good and bad posts:
 
 https://medium.com/@lukas.hauzenberger/multilabel-classification-using-mistral-7b-on-a-single-gpu-with-quantization-and-lora-8f848b5237f3
+
+The training done in this tutorial is ~24 hrs for 10 epochs (30k training rows)
 
 can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
 

@@ -22,14 +22,26 @@ SCORE = {
 UID_COLUMNS = ["created_utc", "id", "subreddit", "author"]
 
 # Regex word matches (must be words, case insensitive)
+# Should put these into categories so the AI knows what to avoid... use ChatGPT for this
 AUTOVET_WORDS = [
     "spencer",
+    "courtney",
+    "sileo",
+    "parker",
     "post(s)?",
+    "posted by",
     "repost(s)?",
+    "posting", # wasn't caught?
     "front page",
     "comment(s)?",
+    "sub",
+    "diary",
     "title",
     "moderator(s)?",
+    "redditor(s)?",
+    "downvote",
+    "upvote",
+    "my username",
     "mods",
     "discord",
     "4chan",
@@ -37,30 +49,84 @@ AUTOVET_WORDS = [
     "college",
     "undergrad",
     "hello everyone",
+    "read on to",
+    "readers",
     "you guys",
     "tl;dr",
+    "TIL",
     "marriage",
     "mom(s)?",
     "dad(s)?",
     "mommy",
+    "mum",
     "daddy",
+    "my family",
     "my mother",
     "my father",
+    "my parents",
+    "my son",
+    "my daughter",
+    "my brother(s)?",
+    "my sister(s)?",
+    "my ex",
+    "my ex-wife",
+    "my husband",
+    "my writing",
+    "my child(ren)?",
+    "my kid(s)?",
+    "my uncle",
+    "my aunt",
+    "my grandma",
+    "my friend(s)?",
+    "my home",
+    "my appartment",
+    "my house",
+    "my country",
+    "my pet",
+    "my dog",
+    "my cat",
+    "my country",
+    "my roommate(s)?",
+    "my housemate(s)?",
+    "my car",
+    "cock",
+    "my dick",
+    "my ass",
+    "my balls",
+    "fap(ping)?",
+    "anal",
+    "blowjobs(s)?",
     "boyfriend",
     "girlfriend",
     "bff",
+    "bf",  # didnt catch bf-
     "gf",
-    "lm(f)?ao",
+    "lm(f)?ao",  # does not catch lmao
     "soundcloud",
+    "podcast",
+    "/rant",
+    "s/o",
+    "nsfw",
+    "thank you",
+    "this video",
 ]
 
 # Regex pattern matches (case insensitive)
 AUTOVET_PATTERNS = [
     r"\b(\d\d\s*[fFmM])\b",  # 28m/28f/28 f (but also 28m $)
+    r"\b\d\d\s*([fFmM])\b",  # 28 (m/f/M/F) TODO: (untested)
+    # TODO: (M 2 8)
+    # TODO: F18
     r"\b\d\dyo\b",  # 28yo
     r"\bI\'m \d\d\b",  # I'm 28 (but also I'm 28% sure)
+    r"\bim \d\d\b",  # im 28 (but also im 28% sure)
     r"\bI\'m a \d\d\b",  # I'm a 28
+    r"\b\d\d year old male\b",
+    r"\b\d\d year old female\b",
     r"\bedit:\B",  # Needs special care due to colon
+    # TODO: dates xx/xx/xx
+    # TODO: assign score proportional to number of matches
+    # TODO: if pos, sample similar post. if neg, sample random
 ]
 
 
@@ -179,7 +245,8 @@ def vet(args, df, vetdf):
             vetdf = pd.concat([vetdf, vetted_sample])
 
             with warnings.catch_warnings(action="ignore"):
-                vetdf.to_hdf(args.outputh5, key="df", mode="w")
+                # vetdf.to_hdf(args.outputh5, key="df", mode="w")
+                pass
 
             # Set stage for the next sample to be vetted
             sample, text = get_sample()
@@ -189,9 +256,15 @@ def vet(args, df, vetdf):
             return (continue_loop := False)
         return (continue_loop := True)
 
-    sample, text = get_sample()
-    screen = tui.Screen(text, keypressed)
-    return screen.run()
+    try:
+        sample, text = get_sample()
+        screen = tui.Screen(text, keypressed)
+        screen.run()
+    finally:
+        vetdf.to_hdf(args.outputh5, key="df", mode="w")
+        print(f"Written to {args.outputh5}")
+
+    return 0
 
 
 if __name__ == "__main__":

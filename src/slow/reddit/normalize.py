@@ -64,6 +64,7 @@ def maybecollapse(
     return "" if pattern.match(text) else text
 
 
+# TODO: still doesn't catch &amp; and &nbsp;
 normalize = preprocessing.make_pipeline(
     # Remove markdown by converting to HTML and then stripping the tags
     remove_markdown_urls,
