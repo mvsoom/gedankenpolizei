@@ -1,4 +1,5 @@
 """Normalize a scraped CSV file and size to a more robust HDF5 file"""
+
 import argparse
 import pandas as pd
 from textacy import preprocessing
@@ -6,14 +7,8 @@ from textacy.preprocessing import normalize, replace, remove
 from functools import partial
 from markdown import markdown as markdown_to_html
 import re
-import string
 import html
-
-
-def remove_enclosing_symbols_and_whitespace(
-    text, pattern=re.compile(r"^[\s\W]+|[\s\W]+$")
-):
-    return pattern.sub("", text)
+import patterns
 
 
 def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):
@@ -21,16 +16,8 @@ def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):
     return pattern.sub("", text)
 
 
-def normalize_repeated_whitespace(text, pattern=re.compile(r"\s+")):
-    return pattern.sub(" ", text)
-
-
-def normalize_ellipses(text, pattern=re.compile(r"\.[\s\.]+\.")):
-    return pattern.sub("...", text)
-
-
-def remove_markdown_urls(text, pattern=re.compile(r"\[([^\[\]]*)\]\([^\(\)]*\)")):
-    return pattern.sub("...", text)
+def remove_triple_ticks(text, pattern=re.compile(r"```")):
+    return pattern.sub("", text)
 
 
 def remove_unicode_whitespace_chars(
@@ -39,13 +26,31 @@ def remove_unicode_whitespace_chars(
     return pattern.sub("", text)
 
 
-def replace_domains(
+def normalize_repeated_whitespace(text, pattern=re.compile(r"\s+")):
+    return pattern.sub(" ", text)
+
+
+def normalize_repeated_ellipses(text, pattern=re.compile(r"\.[\s\.]+\.")):
+    return pattern.sub("...", text)
+
+
+def remove_markdown_urls(text, pattern=re.compile(r"\[(.+?)\]\(.+?\)")):
+    """Remove markdown URLs like [text](url) and keep only the text (https://stackoverflow.com/a/53980235/6783015)"""
+    return pattern.sub(r"\1", text)
+
+
+def replace_urls(
     text,
     pattern=re.compile(
-        r"[\S]+\.(net|com|org|info|edu|gov|uk|de|ca|jp|fr|au|us|ru|ch|it|nel|se|no|es|mil)[\S]*\s?"
+        r"((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*"
     ),
 ):
-    """https://stackoverflow.com/a/54887468/6783015"""
+    """https://stackoverflow.com/a/48689681/6783015"""
+    return pattern.sub("...", text)
+
+
+def replace_redacted(text, pattern=patterns.REDACTED):
+    """Remove stuff like [redacted], [removed by mod], [deleted], etc. from the text"""
     return pattern.sub("...", text)
 
 
@@ -53,47 +58,59 @@ def replace_redditlike(
     text,
     pattern=re.compile(r"\b\w*reddit\w*\b|\br/\w+|\bu/\w+", re.IGNORECASE),
 ):
-    """Define a case-insensitive regular expression pattern to match and replace Reddit-related identifiers"""
+    """Replace Reddit-related identifiers: r/subreddit, u/username, reddit, etc."""
     return pattern.sub("...", text)
 
 
-def maybecollapse(
+def trycollapse(
     text,
-    pattern=re.compile(r"^[\s" + "\u200d" + re.escape(string.punctuation) + r"]+$"),
+    pattern=re.compile(r"\w"),  # = at least one alphanumeric
 ):
-    return "" if pattern.match(text) else text
+    """Try to collapse the text into "" if it only contains links or [deleted] or special symbols"""
+    result = COLLAPSE(text)
+    return "" if not pattern.search(result) else text
 
 
-# TODO: still doesn't catch &amp; and &nbsp;
-normalize = preprocessing.make_pipeline(
-    # Remove markdown by converting to HTML and then stripping the tags
+NORMALIZE = preprocessing.make_pipeline(
+    # Normalize markdown
     remove_markdown_urls,
     markdown_to_html,
     remove.html_tags,
     html.unescape,
-    # Handle Reddit bug; see https://www.reddit.com/r/Infinity_For_Reddit/comments/kz7keb/bug_x200b_is_being_rendered_as_plain_text_instead
-    remove_unicode_sequences,
-    # Handle generic stuff
+    remove_triple_ticks,
+    # Normalize text
     normalize.bullet_points,
     normalize.hyphenated_words,
     normalize.quotation_marks,
+    # Normalize unicode
     partial(normalize.unicode, form="NFKC"),
+    remove_unicode_sequences,  # Handle Reddit bug; see https://www.reddit.com/r/Infinity_For_Reddit/comments/kz7keb/bug_x200b_is_being_rendered_as_plain_text_instead
     normalize.whitespace,
     remove_unicode_whitespace_chars,
-    # Mask (sensitive) information
+    # Normalize repeated characters
+    normalize_repeated_ellipses,
+    normalize_repeated_whitespace,
+    # Collapse posts to "" if they only contain nonsignificant information
+    trycollapse,
+)
+
+
+COLLAPSE = preprocessing.make_pipeline(
+    replace_urls,
+    replace_redacted,
+    replace_redditlike,
+)
+
+
+# TODO: use with vetting
+MASKSENSITIVE = preprocessing.make_pipeline(
     partial(replace.emails, repl="..."),
     partial(replace.emojis, repl="..."),
     partial(replace.phone_numbers, repl="..."),
     partial(replace.urls, repl="..."),
     partial(replace.user_handles, repl="..."),
+    normalize_repeated_ellipses,
     partial(normalize.repeating_chars, chars=".", maxn=3),
-    replace_domains,
-    replace_redditlike,
-    normalize_ellipses,
-    # Normalize whitespace
-    normalize_repeated_whitespace,
-    # Collapse if at this point text is reduced to dots and spaces
-    maybecollapse,
 )
 
 
@@ -118,44 +135,6 @@ def read(inputcsv):
     return df
 
 
-def firststage(df):
-    """Cleanup deleted submission titles and/or selftexts. Do not accept empty selftexts (empty titles are OK)"""
-    from scrape import deleted
-
-    def collapse_if_deleted(text):
-        return "" if deleted(text) else text
-
-    df["title"] = df["title"].apply(collapse_if_deleted)
-    df["selftext"] = df["selftext"].apply(collapse_if_deleted)
-
-    nonempty = df["selftext"].str.len() > 0
-    df = df[nonempty]
-
-    return df
-
-
-def secondstage(df, show_progress):
-    def embed_title_in_selftext(row):
-        title = remove_enclosing_symbols_and_whitespace(row["title"])
-        selftext = row["selftext"]
-        return f"[{title}.] {selftext}" if title else selftext
-
-    raw = df.apply(embed_title_in_selftext, axis=1)
-
-    if show_progress:
-        try:
-            from tqdm import tqdm
-
-            tqdm.pandas()
-            df["normalized"] = raw.progress_apply(normalize)
-        except ImportError:
-            df["normalized"] = raw.apply(normalize)
-    else:
-        df["normalized"] = raw.apply(normalize)
-
-    return df
-
-
 def write(df, outputh5):
     df.to_hdf(outputh5, key="df", mode="w")
 
@@ -164,19 +143,61 @@ def void(*_, **__):
     pass
 
 
+def normalize_column(df, column_name, show_progress):
+    column = df[column_name]
+    if show_progress:
+        try:
+            from tqdm import tqdm
+
+            tqdm.pandas()
+            result = column.progress_apply(NORMALIZE)
+        except ImportError:
+            result = column.apply(NORMALIZE)
+    else:
+        result = column.apply(NORMALIZE)
+    return result
+
+
+def emptystring(column):
+    return column.str.len() == 0
+
+
+def embed_title_in_selftext(title, selftext):
+    return "[" + title + "] " + selftext
+
+
 def main(args):
     verbose = print if args.verbose else void
 
     verbose(f"Reading {args.inputcsv}")
     df = read(args.inputcsv)
 
-    verbose("Removing empty posts")
-    df = firststage(df)
+    verbose("Normalizing authors")
+    author = normalize_column(df, "author", args.verbose)
 
-    verbose("Normalizing")
-    df = secondstage(df, show_progress=args.verbose)
+    verbose("Normalizing titles")
+    title = normalize_column(df, "title", args.verbose)
 
-    verbose(f"Writing result to {args.outputh5}")
+    verbose("Normalizing selftexts")
+    selftext = normalize_column(df, "selftext", args.verbose)
+
+    verbose("Setting normalized columns")
+    df["author"] = author
+    df["normalized"] = embed_title_in_selftext(title, selftext)
+
+    verbose("Removing empty posts (empty authors are allowed)")
+    empty = emptystring(title) | emptystring(selftext)
+    df = df[~empty]
+
+    verbose("Dropping duplicates, setting index and sorting")
+    df.drop_duplicates(
+        subset="normalized", inplace=True, keep="last"
+    )  # Remove duplicate normalized texts (unlikely)
+    df.drop_duplicates(subset="id", inplace=True, keep="last")
+    df.set_index("id", inplace=True, verify_integrity=True)
+    df.sort_values(by="created_utc", inplace=True)
+
+    verbose(f"Writing resulting {len(df)} rows to {args.outputh5}")
     write(df, args.outputh5)
 
     return 0
