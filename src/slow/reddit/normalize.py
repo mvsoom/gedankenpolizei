@@ -9,6 +9,7 @@ from markdown import markdown as markdown_to_html
 import re
 import html
 import patterns
+import spacy
 
 
 def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):
@@ -26,37 +27,23 @@ def remove_unicode_whitespace_chars(
     return pattern.sub("", text)
 
 
-def normalize_repeated_whitespace(text, pattern=re.compile(r"\s+")):
-    return pattern.sub(" ", text)
-
-
-def normalize_repeated_ellipses(text, pattern=re.compile(r"\.[\s\.]+\.")):
-    return pattern.sub("...", text)
-
-
 def remove_markdown_urls(text, pattern=re.compile(r"\[(.+?)\]\(.+?\)")):
     """Remove markdown URLs like [text](url) and keep only the text (https://stackoverflow.com/a/53980235/6783015)"""
     return pattern.sub(r"\1", text)
 
 
-def replace_urls(
-    text,
-    pattern=re.compile(
-        r"((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*"
-    ),
-):
-    """https://stackoverflow.com/a/48689681/6783015"""
+def replace_urls(text, pattern=re.compile(patterns.URL)):
     return pattern.sub("...", text)
 
 
-def replace_redacted(text, pattern=patterns.REDACTED):
+def replace_redacted(text, pattern=re.compile(patterns.REDACTED, re.IGNORECASE)):
     """Remove stuff like [redacted], [removed by mod], [deleted], etc. from the text"""
     return pattern.sub("...", text)
 
 
 def replace_redditlike(
     text,
-    pattern=re.compile(r"\b\w*reddit\w*\b|\br/\w+|\bu/\w+", re.IGNORECASE),
+    pattern=re.compile(patterns.REDDITLIKE, re.IGNORECASE),
 ):
     """Replace Reddit-related identifiers: r/subreddit, u/username, reddit, etc."""
     return pattern.sub("...", text)
@@ -69,6 +56,15 @@ def trycollapse(
     """Try to collapse the text into "" if it only contains links or [deleted] or special symbols"""
     result = COLLAPSE(text)
     return "" if not pattern.search(result) else text
+
+
+def sentence_tokenizer(text, nlp=spacy.load("en_core_web_sm")):
+    """Split text into newline-separated sentence tokens
+
+    Note: en_core_web_sm is well suited for sentence tokenization, little to no gains from larger models
+    """
+    doc = nlp(text)
+    return "\n".join([sentence.strip() for sentence in map(str, doc.sents)])
 
 
 NORMALIZE = preprocessing.make_pipeline(
@@ -85,13 +81,14 @@ NORMALIZE = preprocessing.make_pipeline(
     # Normalize unicode
     partial(normalize.unicode, form="NFKC"),
     remove_unicode_sequences,  # Handle Reddit bug; see https://www.reddit.com/r/Infinity_For_Reddit/comments/kz7keb/bug_x200b_is_being_rendered_as_plain_text_instead
-    normalize.whitespace,
+    partial(replace.emojis, repl=""),
+    # Normalize whitespace
+    normalize.whitespace,  # Collapses repeated whitespace
     remove_unicode_whitespace_chars,
-    # Normalize repeated characters
-    normalize_repeated_ellipses,
-    normalize_repeated_whitespace,
     # Collapse posts to "" if they only contain nonsignificant information
     trycollapse,
+    # Separate into newline-separated sentence tokens
+    sentence_tokenizer,
 )
 
 
@@ -99,18 +96,6 @@ COLLAPSE = preprocessing.make_pipeline(
     replace_urls,
     replace_redacted,
     replace_redditlike,
-)
-
-
-# TODO: use with vetting
-MASKSENSITIVE = preprocessing.make_pipeline(
-    partial(replace.emails, repl="..."),
-    partial(replace.emojis, repl="..."),
-    partial(replace.phone_numbers, repl="..."),
-    partial(replace.urls, repl="..."),
-    partial(replace.user_handles, repl="..."),
-    normalize_repeated_ellipses,
-    partial(normalize.repeating_chars, chars=".", maxn=3),
 )
 
 
@@ -162,8 +147,14 @@ def emptystring(column):
     return column.str.len() == 0
 
 
-def embed_title_in_selftext(title, selftext):
-    return "[" + title + "] " + selftext
+def make_post(normalized_title, normalized_selftext):
+    """A post contains newline separated sentence tokens, so each line is a sentence token
+
+    The first line (aka sentence token) is always the normalized title (which may contain multiple natural language sentences (rare), but no newlines).
+    The next lines are the sentence tokens of the normalized selftext.
+    """
+    post = normalized_title.str.replace("\n", " ") + "\n" + normalized_selftext
+    return post
 
 
 def main(args):
@@ -173,26 +164,25 @@ def main(args):
     df = read(args.inputcsv)
 
     verbose("Normalizing authors")
-    author = normalize_column(df, "author", args.verbose)
+    df["author"] = normalize_column(df, "author", args.verbose)
 
     verbose("Normalizing titles")
-    title = normalize_column(df, "title", args.verbose)
+    df["title"] = normalize_column(df, "title", args.verbose)
 
     verbose("Normalizing selftexts")
-    selftext = normalize_column(df, "selftext", args.verbose)
-
-    verbose("Setting normalized columns")
-    df["author"] = author
-    df["normalized"] = embed_title_in_selftext(title, selftext)
+    df["selftext"] = normalize_column(df, "selftext", args.verbose)
 
     verbose("Removing empty posts (empty authors are allowed)")
-    empty = emptystring(title) | emptystring(selftext)
+    empty = emptystring(df["title"]) | emptystring(df["selftext"])
     df = df[~empty]
+
+    verbose("Joining titles and selftexts into posts")
+    df["post"] = make_post(df["title"], df["selftext"])
 
     verbose("Dropping duplicates, setting index and sorting")
     df.drop_duplicates(
-        subset="normalized", inplace=True, keep="last"
-    )  # Remove duplicate normalized texts (unlikely)
+        subset="post", inplace=True, keep="last"
+    )  # Remove duplicate posts (unlikely)
     df.drop_duplicates(subset="id", inplace=True, keep="last")
     df.set_index("id", inplace=True, verify_integrity=True)
     df.sort_values(by="created_utc", inplace=True)
