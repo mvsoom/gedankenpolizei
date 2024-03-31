@@ -147,16 +147,6 @@ def emptystring(column):
     return column.str.len() == 0
 
 
-def make_post(normalized_title, normalized_selftext):
-    """A post contains newline separated sentence tokens, so each line is a sentence token
-
-    The first line (aka sentence token) is always the normalized title (which may contain multiple natural language sentences (rare), but no newlines).
-    The next lines are the sentence tokens of the normalized selftext.
-    """
-    post = normalized_title.str.replace("\n", " ") + "\n" + normalized_selftext
-    return post
-
-
 def main(args):
     verbose = print if args.verbose else void
 
@@ -176,13 +166,7 @@ def main(args):
     empty = emptystring(df["title"]) | emptystring(df["selftext"])
     df = df[~empty]
 
-    verbose("Joining titles and selftexts into posts")
-    df["post"] = make_post(df["title"], df["selftext"])
-
-    verbose("Dropping duplicates, setting index and sorting")
-    df.drop_duplicates(
-        subset="post", inplace=True, keep="last"
-    )  # Remove duplicate posts (unlikely)
+    verbose("Setting index and sorting")
     df.drop_duplicates(subset="id", inplace=True, keep="last")
     df.set_index("id", inplace=True, verify_integrity=True)
     df.sort_values(by="created_utc", inplace=True)
