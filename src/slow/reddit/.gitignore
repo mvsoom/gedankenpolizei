@@ -1,6 +1,7 @@
 data/
 .venv/
 subreddit/
+posts/
 assets/
 *.ipynb
 __pycache__/
