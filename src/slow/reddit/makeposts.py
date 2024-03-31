@@ -112,7 +112,7 @@ def embed(posts, show_progress=False, **encode_kwargs):
     embedding = model.encode(
         sentences,
         show_progress_bar=show_progress,
-        batch_size=64,
+        batch_size=50,
         **encode_kwargs,
     )  # (len(posts), <embedding dimension>)
 
