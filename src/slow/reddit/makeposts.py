@@ -21,9 +21,8 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 def formatpost(post, symbol="🟦", width=60):
     # Color the first line (title) in blue
     lines = post.splitlines()
-    lines[0] = f"\033[94m{lines[0]}\033[0m"
+    #lines[0] = f"\033[94m{lines[0]}\033[0m"
     # Separate newlines by symbol
-
     formattedpost = symbol.join(lines)
     # Wrap the text to 60 characters
     formattedpost = textwrap.fill(formattedpost, width=width)

@@ -69,6 +69,8 @@ LABEL_PATTERNS = {
             "my brother(s)?",
             "my sister(s)?",
             "my ex(-wife)?",
+            "my partner",
+            "my wife",
             "my (ex-)?husband",
             "my child(ren)?",
             "my kid(s)?",
@@ -94,6 +96,11 @@ LABEL_PATTERNS = {
             "(high)?school",
             "college",
             "undergrad",
+            "at work",
+            "my coworker(s)?",
+            "break( )?up",
+            "my nan(ny)?",
+            "army",
         )
     ],
     "SEXUAL": [
@@ -111,6 +118,7 @@ LABEL_PATTERNS = {
     "SOCIAL_MEDIA": [
         *word_boundaries(
             "(sub)?reddit",
+            "sub(s)?",
             "moderator(s)?",
             "redditor(s)?",
             "comment(s)?",
@@ -130,7 +138,7 @@ LABEL_PATTERNS = {
             "hello everyone",
             "read on to",
             "readers",
-            "tl;dr",
+            "tl(;)?dr",
             "poll",
             "my writing",
             "thank you",
@@ -140,6 +148,10 @@ LABEL_PATTERNS = {
             "you guys",
             "admin",
             "title",
+            "edits",
+            "thoughts\?",
+            "thanks!",
+            "forum" "any (other)?suggestions",
         ),
         REDACTED,
         URL,
