@@ -9,6 +9,12 @@ import textwrap
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+import warnings
+from pandas.errors import PerformanceWarning
+
+warnings.filterwarnings("ignore", category=PerformanceWarning)
+
+
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
@@ -54,7 +60,7 @@ def downsample(df, args):
             old = pd.read_hdf(args.outputh5)
             new = df[~df.index.isin(old.index)]
             numsamples = min(args.downsample, len(new))
-            return df.sample(n=numsamples)
+            return new.sample(n=numsamples)
         except FileNotFoundError:
             verbose("Update file not found: sampling from all rows")
     return df.sample(n=args.downsample)
@@ -132,8 +138,10 @@ def write(df, outputh5):
 def main(args):
     df = read_dfs(args.inputh5)
 
-    if args.downsample:
-        df = downsample(df, args)
+    if not args.downsample:
+        args.downsample = len(df)
+
+    df = downsample(df, args)
     verbose(f"Read {len(df)} rows from {len(args.inputh5)} files")
 
     verbose("Joining titles and selftexts into posts")
@@ -147,19 +155,21 @@ def main(args):
     verbose("Embedding posts")
     df["embedding"] = embed(df["post"], show_progress=args.verbose)
 
+    newrows = len(df)
     if args.update:
         try:
             old = pd.read_hdf(args.outputh5)
             df = pd.concat([old, df])
             df = df[~df.index.duplicated(keep="last")]
+            newrows = len(df) - len(old)
             verbose("Updating")
         except FileNotFoundError:
             verbose("Update file not found: writing to new file")
 
-    verbose(f"Writing {len(df)} rows to {args.outputh5}")
+    verbose(f"Writing {newrows} new rows to {args.outputh5}")
     write(df, args.outputh5)
 
-    return 0
+    return 0 if newrows > 0 else 1
 
 
 def void(*_, **__):
