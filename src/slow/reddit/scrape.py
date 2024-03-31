@@ -1,5 +1,7 @@
 """Scrape submissions (posts without the comments) from a subreddit"""
+
 import argparse
+from copy import copy
 import time
 import requests
 from datetime import datetime
@@ -9,6 +11,7 @@ import csv
 import os
 from collections import OrderedDict
 from sys import exit
+import pandas as pd
 
 
 API = "https://api.pullpush.io/reddit/search/submission/"
@@ -81,16 +84,64 @@ def filesize_in_gb(filename):
         return 0.0
 
 
+def read(inputcsv):
+    """Read CSV file without treating empty strings as NaN and with custom converters"""
+
+    def convert_to_int_or_zero(value):
+        return int(value) if value != "" else 0
+
+    column_converters = {
+        "ups": convert_to_int_or_zero,
+        "downs": convert_to_int_or_zero,
+    }
+
+    df = pd.read_csv(
+        inputcsv,
+        keep_default_na=False,
+        na_filter=False,
+        converters=column_converters,
+    )
+
+    return df
+
+
 utc = datetime.utcfromtimestamp
 
 
 def main(args):
-    verbose = print if args.verbose else void
+    if not args.update:
+        return scrape(args)
+    else:
+        args.update = False
+
+        try:
+            df = read(args.outputcsv)
+        except FileNotFoundError:
+            verbose("Update file not found: scraping from scratch")
+            return scrape(args)
+
+        oldest = int(df["created_utc"].min())
+        newest = int(df["created_utc"].max())
+
+        a = copy(args)
+        a.before = oldest - 1
+
+        b = copy(args)
+        b.after = newest + 1
+
+        verbose(
+            f"Updating submissions with (t < {utc(oldest)}) and ({utc(newest)} < t)"
+        )
+
+        return scrape(a) | scrape(b)
+
+
+def scrape(args):
     verbose(f"Writing to {args.outputcsv}")
 
     b = args.before
     stride = args.stride
-    done = False
+    done = not (args.after < args.before)
 
     while not done:
         # Scrape submissions timestamped within [a,b]
@@ -162,6 +213,11 @@ if __name__ == "__main__":
         help="Scrape submissions after this UTC epoch date",
     )
     parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update CSV file with newer and older submissions",
+    )
+    parser.add_argument(
         "--stride",
         type=int,
         default=86400,
@@ -179,5 +235,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.outputcsv is None:
         args.outputcsv = args.subreddit + ".csv"
+
+    verbose = print if args.verbose else void
 
     exit(main(args))
