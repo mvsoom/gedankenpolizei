@@ -51,7 +51,7 @@ def word_boundaries(*args):
     return [rf"\b{a}\b" for a in args]
 
 
-AUTOVET_PATTERNS = {
+LABEL_PATTERNS = {
     "PERSONAL": [
         *word_boundaries(
             "marriage",

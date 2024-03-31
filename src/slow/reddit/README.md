@@ -151,6 +151,8 @@ https://medium.com/@lukas.hauzenberger/multilabel-classification-using-mistral-7
 
 The training done in this tutorial is ~24 hrs for 10 epochs (30k training rows)
 
+getting our labels into the format required: see sklearn.preprocessing.MultiLabelBinarizer
+
 can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
 
 https://stackoverflow.com/questions/69907682/what-are-differences-between-automodelforsequenceclassification-vs-automodel
