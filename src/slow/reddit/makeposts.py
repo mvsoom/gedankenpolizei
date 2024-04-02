@@ -1,6 +1,7 @@
 """Make labeled and embedded posts from normalized subreddits"""
 
 import argparse
+import os
 import pandas as pd
 from sys import exit
 import patterns
@@ -21,7 +22,7 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 def formatpost(post, symbol="🟦", width=60):
     # Color the first line (title) in blue
     lines = post.splitlines()
-    #lines[0] = f"\033[94m{lines[0]}\033[0m"
+    # lines[0] = f"\033[94m{lines[0]}\033[0m"
     # Separate newlines by symbol
     formattedpost = symbol.join(lines)
     # Wrap the text to 60 characters
@@ -124,14 +125,16 @@ def embed(posts, show_progress=False, **encode_kwargs):
     return [np.array(row) for row in embedding]
 
 
-def write(df, outputh5):
-    df.drop_duplicates(
-        subset="post", inplace=True, keep="last"
-    )  # Remove duplicate posts (unlikely)
+def write(df, args):
     df.reset_index(inplace=True)
     df.drop_duplicates(subset="id", inplace=True, keep="last")
     df.set_index("id", inplace=True, verify_integrity=True)
-    df.to_hdf(outputh5, key="df", mode="w")
+
+    # If file exists and we're not updating, abort
+    if (not args.update) and os.path.exists(args.outputh5):
+        raise ValueError(f"Output file {args.outputh5} already exists")
+
+    df.to_hdf(args.outputh5, key="df", mode="w")
 
 
 def main(args):
@@ -166,7 +169,7 @@ def main(args):
             verbose("Update file not found: writing to new file")
 
     verbose(f"Writing {newrows} new rows to {args.outputh5}")
-    write(df, args.outputh5)
+    write(df, args)
 
     return 0 if newrows > 0 else 1
 
