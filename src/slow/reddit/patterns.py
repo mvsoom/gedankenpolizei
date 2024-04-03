@@ -88,19 +88,22 @@ LABEL_PATTERNS = {
             "my roommate(s)?",
             "my housemate(s)?",
             "my car",
+            "my phone",
+            "my birthday",
+            "our country",
             "boyfriend",
             "girlfriend",
             "bff",
             "bf",
             "gf",
-            "(high)?school",
+            "(high)?school(s)?",
             "college",
             "undergrad",
             "at work",
             "my coworker(s)?",
             "break( )?up",
             "my nan(ny)?",
-            "army",
+            "as humans",
         )
     ],
     "SEXUAL": [
@@ -126,6 +129,7 @@ LABEL_PATTERNS = {
             "upvote",
             "downvote",
             "post(s)?",
+            "paragraph",
             "posted by",
             "repost(s)?",
             "posting",
@@ -141,6 +145,7 @@ LABEL_PATTERNS = {
             "tl(;)?dr",
             "poll",
             "my writing",
+            "does anyone",
             "thank you",
             "this video",
             "soundcloud",
@@ -151,7 +156,11 @@ LABEL_PATTERNS = {
             "edits",
             "thoughts\?",
             "thanks!",
-            "forum" "any (other)?suggestions",
+            "forum",
+            "any (other)?suggestions",
+            "any tips",
+            "vent(ing)?",
+            "p\.s\.",
         ),
         REDACTED,
         URL,
@@ -162,7 +171,7 @@ LABEL_PATTERNS = {
     "AGE": [
         r"\b\d\d\s*\(?[fFmM]\)?\b",  # 28m/28f/28 f/28 (m) (but also 28m $)
         r"\b\d\dyo\b",  # 28yo
-        r"\bi(\')?m (a )?\d\d\b",  # I'm/Im/im (a) 28 (but also I'm 28% sure)
+        r"\bi(\')?( a)?m (only )?(a )?\d\d\b",  # I'm/Im/im (a)/I am 28 (but also I'm 28% sure)
         r"\b\d\d year old (fe)?male\b",
     ],
     "MISC": [
@@ -171,6 +180,8 @@ LABEL_PATTERNS = {
             "courtney",
             "sileo",
             "parker",
+            "ASPD",
+            "DPDR",
         )
     ],
 }

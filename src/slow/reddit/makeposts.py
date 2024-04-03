@@ -1,4 +1,4 @@
-"""Make labeled and embedded posts from normalized subreddits"""
+"""Make labeled and embedded posts from normalized submissions"""
 
 import argparse
 import os
@@ -9,12 +9,6 @@ import re
 import textwrap
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
-import warnings
-from pandas.errors import PerformanceWarning
-
-warnings.filterwarnings("ignore", category=PerformanceWarning)
-
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
@@ -35,13 +29,11 @@ def printpost(post):
 
 
 def read_dfs(inputs):
-    dfs = [pd.read_hdf(input) for input in inputs]
+    dfs = [pd.read_feather(input) for input in inputs]
 
     for df in dfs:
         if df.index.name != "id" or df.index.dtype != "object":
-            raise ValueError(
-                "All input DataFrames must have an index named 'id' and of type 'str'"
-            )
+            raise ValueError("Bad indices")
 
     df = pd.concat(dfs)
 
@@ -57,7 +49,7 @@ def downsample(df, args):
     if args.update:
         try:
             # Sample only from rows in df that are not in old
-            old = pd.read_hdf(args.outputh5)
+            old = pd.read_feather(args.outputfile)
             new = df[~df.index.isin(old.index)]
             numsamples = min(args.downsample, len(new))
             return new.sample(n=numsamples)
@@ -131,20 +123,20 @@ def write(df, args):
     df.set_index("id", inplace=True, verify_integrity=True)
 
     # If file exists and we're not updating, abort
-    if (not args.update) and os.path.exists(args.outputh5):
-        raise ValueError(f"Output file {args.outputh5} already exists")
+    if (not args.update) and os.path.exists(args.outputfile):
+        raise ValueError(f"Output file {args.outputfile} already exists")
 
-    df.to_hdf(args.outputh5, key="df", mode="w")
+    df.to_feather(args.outputfile, compression="zstd")
 
 
 def main(args):
-    df = read_dfs(args.inputh5)
+    df = read_dfs(args.inputfile)
 
     if not args.downsample:
         args.downsample = len(df)
 
     df = downsample(df, args)
-    verbose(f"Read {len(df)} rows from {len(args.inputh5)} files")
+    verbose(f"Read {len(df)} rows from {len(args.inputfile)} files")
 
     verbose("Joining titles and selftexts into posts")
     df["post"] = make_post(df["title"], df["selftext"])
@@ -160,7 +152,7 @@ def main(args):
     newrows = len(df)
     if args.update:
         try:
-            old = pd.read_hdf(args.outputh5)
+            old = pd.read_feather(args.outputfile)
             df = pd.concat([old, df])
             df = df[~df.index.duplicated(keep="last")]
             newrows = len(df) - len(old)
@@ -168,31 +160,31 @@ def main(args):
         except FileNotFoundError:
             verbose("Update file not found: writing to new file")
 
-    verbose(f"Writing {newrows} new rows to {args.outputh5}")
+    verbose(f"Writing {newrows} new rows to {args.outputfile}")
     write(df, args)
 
     return 0 if newrows > 0 else 1
 
 
-def void(*_, **__):
-    pass
-
+verbose = print
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
-        "inputh5", nargs="+", help="HDF5 files containing normalized CSV files"
+        "inputfile",
+        nargs="+",
+        help="Input .feather files containing normalized submissions",
     )
     parser.add_argument(
-        "--outputh5",
-        default="posts.h5",
-        help="Output HDF5 file to result to (default: posts.h5)",
+        "--outputfile",
+        default="posts.feather",
+        help="Output .feather file to result to (default: posts.feather)",
     )
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Update output HDF5 file rather than overwriting",
+        help="Update output file rather than overwriting",
     )
     parser.add_argument("--verbose", action="store_true", help="Print verbose output")
     parser.add_argument(
@@ -204,7 +196,7 @@ if __name__ == "__main__":
 
     # Parse the command line arguments
     args = parser.parse_args()
-
-    verbose = print if args.verbose else void
+    if not args.verbose:
+        verbose = lambda *_, **__: None
 
     exit(main(args))

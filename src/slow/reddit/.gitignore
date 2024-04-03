@@ -1,7 +1,7 @@
 data/
 .venv/
-subreddit/
-posts/
 assets/
 *.ipynb
+*.csv
+*.feather
 __pycache__/

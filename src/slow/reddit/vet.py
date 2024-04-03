@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from sys import exit
 from lib import tui
-import warnings
 import sentence_transformers
 from makeposts import formatpost
 
@@ -31,38 +30,10 @@ def weigh_subreddits(pdf, vdf):
     return weights
 
 
-def stratified_sample(df, among):
-    subclasses = df[among].unique()
-    c = np.random.choice(subclasses)
-    return df[df[among] == c].sample(n=1)
-
-
-def unique_stratified_sample(df, among, vetdf, maxtries=100):
-    # https://stackoverflow.com/questions/68490691/faster-way-to-look-for-a-value-in-pandas-dataframe
-    if vetdf.empty:
-        return stratified_sample(df, among)
-
-    tries = 0
-    while tries < maxtries:
-        with open("tmpoutput", "a") as f:
-            print(tries, file=f, flush=True)
-        sample = stratified_sample(df, among)
-
-        # match = (sample[matchcols].values == vetdf[matchcols].values).all(axis=1).any()
-        match = None
-
-        if not match:
-            return sample
-        else:
-            tries += 1
-
-    raise ValueError(f"Can't find unique stratified sample after {maxtries} tries")
-
-
 def main(args):
-    pdf = pd.read_hdf(args.posth5)
+    pdf = pd.read_feather(args.postfile)
     try:
-        vdf = pd.read_hdf(args.veth5)
+        vdf = pd.read_feather(args.vetfile)
     except FileNotFoundError:
         vdf = pd.DataFrame()
 
@@ -103,6 +74,11 @@ def main(args):
 
 
 def vet(args, vdf, sample_post):
+    def display(sample):
+        subreddit = sample["subreddit"]
+        post = formatpost(sample["post"])
+        return f"r/{subreddit}\n{post}"
+
     def keypressed(screen, c):
         if c in [PLUS, ENTER, MINUS]:
             # Add the sample to the vetting df and write out immediately
@@ -111,7 +87,7 @@ def vet(args, vdf, sample_post):
 
             # Set stage for the next sample to be vetted
             sample = sample_post(sample.name if c == PLUS else None)
-            screen.text = formatpost(sample["post"])
+            screen.text = display(sample)
             screen.display()
         elif c == EXIT:
             return (continue_loop := False)
@@ -119,13 +95,13 @@ def vet(args, vdf, sample_post):
 
     try:
         sample = sample_post()
-        text = formatpost(sample["post"])
+        text = display(sample)
         screen = tui.Screen(text, keypressed)
         screen.run()
     finally:
         vdf["score"] = vdf["score"].astype("int")
-        vdf.to_hdf(args.veth5, key="df", mode="w")
-        print(f"Written to {args.veth5}")
+        vdf.to_feather(args.vetfile, compression="zstd")
+        print(f"Written to {args.vetfile}")
 
     return 0
 
@@ -133,8 +109,8 @@ def vet(args, vdf, sample_post):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, epilog=INSTRUCTIONS)
 
-    parser.add_argument("posth5", help="HDF5 file containing posts to vet")
-    parser.add_argument("veth5", help="Output HDF5 vet file to append to")
+    parser.add_argument("postfile", help="Post .feather file containing posts to vet")
+    parser.add_argument("vetfile", help="Output vet .feather file to append to")
 
     # Parse the command line arguments
     args = parser.parse_args()

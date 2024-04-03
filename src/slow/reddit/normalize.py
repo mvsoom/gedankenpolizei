@@ -1,4 +1,4 @@
-"""Normalize a scraped CSV file and size to a more robust HDF5 file"""
+"""Normalize a scraped CSV file and save to a more robust .feather file"""
 
 import argparse
 import pandas as pd
@@ -10,6 +10,7 @@ import re
 import html
 import patterns
 import spacy
+from sys import exit
 
 
 def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):
@@ -51,9 +52,9 @@ def replace_redditlike(
 
 def trycollapse(
     text,
-    pattern=re.compile(r"\w"),  # = at least one alphanumeric
+    pattern=re.compile(r"[a-zA-Z]"),  # = at least one ordinary letter
 ):
-    """Try to collapse the text into "" if it only contains links or [deleted] or special symbols"""
+    """Try to collapse the text into "" if it only contains links or digits or [deleted] or special symbols"""
     result = COLLAPSE(text)
     return "" if not pattern.search(result) else text
 
@@ -105,6 +106,16 @@ def read(inputcsv):
     def convert_to_int_or_zero(value):
         return int(value) if value != "" else 0
 
+    # Use pandas' newer StringDType instead of objects (https://pandas.pydata.org/docs/user_guide/text.html#text-data-types)
+    # This avoids a writing error downstream (https://stackoverflow.com/questions/57078803/overflowerror-while-saving-large-pandas-df-to-hdf)
+    string_converters = {
+        "id": "string",
+        "subreddit": "string",
+        "author": "string",
+        "title": "string",
+        "selftext": "string",
+    }
+
     column_converters = {
         "ups": convert_to_int_or_zero,
         "downs": convert_to_int_or_zero,
@@ -114,18 +125,15 @@ def read(inputcsv):
         inputcsv,
         keep_default_na=False,
         na_filter=False,
+        dtype=string_converters,
         converters=column_converters,
     )
 
     return df
 
 
-def write(df, outputh5):
-    df.to_hdf(outputh5, key="df", mode="w")
-
-
-def void(*_, **__):
-    pass
+def write(df, outputfile):
+    df.to_feather(outputfile, compression="zstd")
 
 
 def normalize_column(df, column_name, show_progress):
@@ -140,7 +148,9 @@ def normalize_column(df, column_name, show_progress):
             result = column.apply(NORMALIZE)
     else:
         result = column.apply(NORMALIZE)
-    return result
+
+    # Pandas forgets about string dtype, need to recast
+    return result.astype("string")
 
 
 def emptystring(column):
@@ -148,8 +158,6 @@ def emptystring(column):
 
 
 def main(args):
-    verbose = print if args.verbose else void
-
     verbose(f"Reading {args.inputcsv}")
     df = read(args.inputcsv)
 
@@ -171,31 +179,36 @@ def main(args):
     df.set_index("id", inplace=True, verify_integrity=True)
     df.sort_values(by="created_utc", inplace=True)
 
-    verbose(f"Writing resulting {len(df)} rows to {args.outputh5}")
-    write(df, args.outputh5)
+    verbose(f"Writing resulting {len(df)} rows to {args.outputfile}")
+    write(df, args.outputfile)
 
     return 0
 
+
+verbose = print
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument("inputcsv", help="Normalize this CSV")
     parser.add_argument(
-        "outputh5",
+        "outputfile",
         nargs="?",
         default=None,
-        help="Write out result to this HDF5 file and replace it if it already exists (default: base on {inputcsv})",
+        help="Write out result to this .feather file and replace it if it already exists (default: base on {inputcsv})",
     )
     parser.add_argument("--verbose", action="store_true", help="Print verbose output")
 
     # Parse the command line arguments
     args = parser.parse_args()
-    if args.outputh5 is None:
-        args.outputh5 = (
+    if args.outputfile is None:
+        args.outputfile = (
             args.inputcsv[:-4]
             if args.inputcsv.lower().endswith(".csv")
             else args.inputcsv
-        ) + ".normalized"
+        ) + ".feather"
+
+    if not args.verbose:
+        verbose = lambda *_, **__: None
 
     exit(main(args))
