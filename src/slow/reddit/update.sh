@@ -14,7 +14,7 @@ echo "Relabeling existing posts..."
 python relabel.py "$POSTS_FILE" --verbose
 
 echo "Updating new scrapes..."
-cat "$SUBREDDIT_DIR"/subreddits.list | grep -v '^#' | xargs -I {} -P $SCRAPE_NUM_THREADS -n 1 \
+cat subreddit.list | grep -v '^#' | xargs -I {} -P $SCRAPE_NUM_THREADS -n 1 \
     python scrape.py {} "$SUBREDDIT_DIR"/{}.csv --update --stride $SCRAPE_STRIDE --maxfsize $SCRAPE_MAXFSIZE --verbose
 
 echo "Normalizing new scrapes..."

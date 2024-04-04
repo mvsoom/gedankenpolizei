@@ -1,7 +1,5 @@
-data/
 .venv/
-assets/
-*.ipynb
-*.csv
-*.feather
+test/
+subreddit/
+posts/
 __pycache__/

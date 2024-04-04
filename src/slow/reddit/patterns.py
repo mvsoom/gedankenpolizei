@@ -30,6 +30,7 @@ REDACTED_KEYWORDS = [
     "retracted",
     "unpublished",
     "inaccessible",
+    "harm",
 ]
 
 # Matches [redacted], [removed by mod], [deleted], etc.
@@ -90,6 +91,7 @@ LABEL_PATTERNS = {
             "my car",
             "my phone",
             "my birthday",
+            "my childhood",
             "our country",
             "boyfriend",
             "girlfriend",
@@ -99,6 +101,7 @@ LABEL_PATTERNS = {
             "(high)?school(s)?",
             "college",
             "undergrad",
+            "homework",
             "at work",
             "my coworker(s)?",
             "break( )?up",
@@ -174,6 +177,9 @@ LABEL_PATTERNS = {
         r"\bi(\')?( a)?m (only )?(a )?\d\d\b",  # I'm/Im/im (a)/I am 28 (but also I'm 28% sure)
         r"\b\d\d year old (fe)?male\b",
     ],
+    "QUESTION": [
+        r"\?$",  # Post ends with a question
+    ],
     "MISC": [
         *word_boundaries(
             "spencer",
@@ -182,6 +188,7 @@ LABEL_PATTERNS = {
             "parker",
             "ASPD",
             "DPDR",
+            "NPD",
         )
     ],
 }

@@ -1,5 +1,33 @@
 # Training an LLM on reddit data
 
+## Sequence classification
+
+into good and bad posts:
+
+https://medium.com/@lukas.hauzenberger/multilabel-classification-using-mistral-7b-on-a-single-gpu-with-quantization-and-lora-8f848b5237f3
+
+The training done in this tutorial is ~24 hrs for 10 epochs (30k training rows)
+
+
+combine with unsloth: https://huggingface.co/docs/trl/main/en/sft_trainer#accelerate-fine-tuning-2x-using-unsloth
+
+  Training Mistral on text completion of stories:
+  https://colab.research.google.com/drive/1ef-tab5bhkvWmBOObepl1WgJvfvSzn5Q?usp=sharing
+
+note mistral better than gemma
+
+
+getting our labels into the format required: see sklearn.preprocessing.MultiLabelBinarizer
+
+can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
+
+https://stackoverflow.com/questions/69907682/what-are-differences-between-automodelforsequenceclassification-vs-automodel
+
+![Alt text](assets/automodel.png)
+
+Concatenate posts by the same author sorted by date to get longer training sequences!
+
+
 ## GPUs
 
 runpods.io:
@@ -15,6 +43,10 @@ lambdalabs:
 - NO API deployment
 - ~0.75 dollar/hour
 
+serve on HuggingFace?
+
+
+
 TIP:
 upload & download data/(finetuned) models to Huggingface: faster speeds
 
@@ -29,7 +61,8 @@ use the classifier to find any SOC-like text, eg in a novel
 ## other
 
 - headphones with TTS, maybe in Microsoft SAM voice or The Expressionless voice
-- generate images based on SOC for training data
+- generate images based on SOC for training data8
+- zie whatsapp anton
 
 ## Datasets
 
@@ -99,68 +132,6 @@ ForeverAlone
 
 Always has <[TITLE] ONESENTENCE> form ... to learn connection
 
-## Vetting
-
-Mark as negative => more signal
-
-Possible improvements to filter on (to remove or replace by ellipsis):
-- Names (Christine, Paul)
-- "post", "repost", "front page" (the literal word), "account"
-- "comment"
-- "title"
-- "mom", "dad"
-- "moderator", "mods"
-- "edit:"
-- "(17f), (50M)" etc.
-- "20yo" etc.
-- "I'm 19" etc.
-- "Discord", "4chan"
-- "hello everyone", "you guys"
-- "spencer"
-- "school", "college", "undergrad"
-- "years old"
-
-Or just mark as negative (-1) examples
-
-Replace \s+ by ...? (if repeated whitespace)
-Many paragraphs don't end with punctuation (the poems etc)
-
-## Filtering pipeline
-
-We can rank these posts by embedding them and dotting them with embeddings of exemplary SOCs.
-
-Posts are naturally structured in <thought>...</thought> and good length.
-
-Other filtering:
-- Exclude mentions of "Reddit", "OP"
-- Excluding links
-- Excluding mentions of the years or date
-- deMarkdown: \[ etc
-- See: https://www.kaggle.com/code/fazilbtopal/nlp-data-preprocessing#Cleaning-Text-Data
-
-
-And perhaps encourage parentheses if we go for that scheme
-
-We can use the post titles as seed/summaries/...! In the training data we could for example use them as metathoughts
-
-## Sequence classification
-
-into good and bad posts:
-
-https://medium.com/@lukas.hauzenberger/multilabel-classification-using-mistral-7b-on-a-single-gpu-with-quantization-and-lora-8f848b5237f3
-
-The training done in this tutorial is ~24 hrs for 10 epochs (30k training rows)
-
-getting our labels into the format required: see sklearn.preprocessing.MultiLabelBinarizer
-
-can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
-
-https://stackoverflow.com/questions/69907682/what-are-differences-between-automodelforsequenceclassification-vs-automodel
-
-![Alt text](assets/automodel.png)
-
-Concatenate posts by the same author sorted by date to get longer training sequences!
-
 ## Other
 
 Create character personalities
@@ -176,6 +147,8 @@ Camera-like posts
 Post lenths
 - posts are already structured as single thoughts! And have good lengths. And have meta title
 - are good building blocks
+
+We can use the post titles as seed/summaries/...! In the training data we could for example use them as metathoughts
 
 Comments
 - could be good meta thoughts too
