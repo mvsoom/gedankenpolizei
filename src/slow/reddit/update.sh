@@ -18,7 +18,7 @@ cat "$SUBREDDIT_DIR"/subreddits.list | grep -v '^#' | xargs -I {} -P $SCRAPE_NUM
     python scrape.py {} "$SUBREDDIT_DIR"/{}.csv --update --stride $SCRAPE_STRIDE --maxfsize $SCRAPE_MAXFSIZE --verbose
 
 echo "Normalizing new scrapes..."
-for csv_file in "$SUBREDDIT_DIR"/*.feather; do
+for csv_file in "$SUBREDDIT_DIR"/*.csv; do
     if [ -f "$csv_file" ]; then
         # Run the command for each CSV file
         python normalize.py "$csv_file" --verbose

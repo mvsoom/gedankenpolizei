@@ -20,12 +20,12 @@ SCORE = {
 def weigh_subreddits(pdf, vdf):
     vetted = pdf.loc[pdf.index.isin(vdf.index)]
 
-    counts = pdf["subreddit"].value_counts() * 0
+    counts = pdf["subreddit"].value_counts() * 0.0
     counts = counts + vetted["subreddit"].value_counts()
 
     counts[counts.isna()] = 1 / len(pdf)
 
-    # Assign minimal weight for subreddits that have not been vetted yet
+    # Favor subreddits that have not been vetted yet
     weights = (1 / counts) / (1 / counts).sum()
     return weights
 
