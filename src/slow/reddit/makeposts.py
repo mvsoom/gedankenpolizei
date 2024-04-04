@@ -10,6 +10,12 @@ import textwrap
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+import warnings
+from pandas.errors import PerformanceWarning
+
+warnings.filterwarnings("ignore", category=PerformanceWarning)
+
+
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
@@ -52,6 +58,7 @@ def downsample(df, args):
             old = pd.read_feather(args.outputfile)
             new = df[~df.index.isin(old.index)]
             numsamples = min(args.downsample, len(new))
+            return new.sample(n=numsamples)
             return new.sample(n=numsamples)
         except FileNotFoundError:
             verbose("Update file not found: sampling from all rows")
@@ -150,11 +157,13 @@ def main(args):
     df["embedding"] = embed(df["post"], show_progress=args.verbose)
 
     newrows = len(df)
+    newrows = len(df)
     if args.update:
         try:
             old = pd.read_feather(args.outputfile)
             df = pd.concat([old, df])
             df = df[~df.index.duplicated(keep="last")]
+            newrows = len(df) - len(old)
             newrows = len(df) - len(old)
             verbose("Updating")
         except FileNotFoundError:
@@ -163,6 +172,7 @@ def main(args):
     verbose(f"Writing {newrows} new rows to {args.outputfile}")
     write(df, args)
 
+    return 0 if newrows > 0 else 1
     return 0 if newrows > 0 else 1
 
 
