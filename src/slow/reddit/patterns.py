@@ -31,6 +31,7 @@ REDACTED_KEYWORDS = [
     "unpublished",
     "inaccessible",
     "harm",
+    "label",
 ]
 
 # Matches [redacted], [removed by mod], [deleted], etc.
@@ -92,6 +93,7 @@ LABEL_PATTERNS = {
             "my phone",
             "my birthday",
             "my childhood",
+            "my boss",
             "our country",
             "boyfriend",
             "girlfriend",
@@ -164,6 +166,7 @@ LABEL_PATTERNS = {
             "any tips",
             "vent(ing)?",
             "p\.s\.",
+            "DM me",
         ),
         REDACTED,
         URL,
@@ -178,6 +181,7 @@ LABEL_PATTERNS = {
         r"\b\d\d year old (fe)?male\b",
     ],
     "QUESTION": [
+        r"^.*\?\n",  # Post title is a question
         r"\?$",  # Post ends with a question
     ],
     "MISC": [

@@ -10,12 +10,6 @@ import textwrap
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-import warnings
-from pandas.errors import PerformanceWarning
-
-warnings.filterwarnings("ignore", category=PerformanceWarning)
-
-
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 

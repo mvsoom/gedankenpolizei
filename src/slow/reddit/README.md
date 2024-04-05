@@ -16,6 +16,7 @@ combine with unsloth: https://huggingface.co/docs/trl/main/en/sft_trainer#accele
 
 note mistral better than gemma
 
+can also use BERT for classification if we cant reuse LoRAs (reddit question): https://www.reddit.com/r/LocalLLaMA/comments/1afgibb/experience_replacing_gpt4_with_bert_for/
 
 getting our labels into the format required: see sklearn.preprocessing.MultiLabelBinarizer
 
@@ -201,4 +202,4 @@ https://medium.com/docler-engineering/webgl-video-manipulation-8d0892b565b6
 
 ## Other random ideas
 
-- Generate ASCII art to represent images?
+- whatsapp (qr code or text to nuber). start slow and then spam
