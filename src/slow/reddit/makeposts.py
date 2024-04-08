@@ -9,8 +9,8 @@ import re
 import textwrap
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
 
 
 def formatpost(post, symbol="🟦", width=60):
@@ -53,7 +53,6 @@ def downsample(df, args):
             new = df[~df.index.isin(old.index)]
             numsamples = min(args.downsample, len(new))
             return new.sample(n=numsamples)
-            return new.sample(n=numsamples)
         except FileNotFoundError:
             verbose("Update file not found: sampling from all rows")
     return df.sample(n=args.downsample)
@@ -75,25 +74,68 @@ COMPILED_LABEL_PATTERNS = {
 }
 
 
-def label(posts, show_progress=False):
-    def label_text(text):
-        return set(
-            category
-            for category, pattern in COMPILED_LABEL_PATTERNS.items()
-            if pattern.search(text)
-        )
+def get_distilbert_ner():
+    tokenizer = AutoTokenizer.from_pretrained("dslim/distilbert-NER")
+    model = AutoModelForTokenClassification.from_pretrained("dslim/distilbert-NER")
 
+    # Replace the labels in the output with the actual categories from the HF model card
+    model.config.id2label = {
+        0: "O",
+        1: "B-MISC",
+        2: "I-MISC",
+        3: "B-PER",
+        4: "I-PER",
+        5: "B-ORG",
+        6: "I-ORG",
+        7: "B-LOC",
+        8: "I-LOC",
+    }
+
+    return pipeline(
+        "ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"
+    )
+
+
+def contains_entities(
+    text,
+    distilbert_ner=get_distilbert_ner(),
+    score_treshold=0.8,  # Works well empirically
+):
+    output = distilbert_ner(text)
+    return any(
+        entity["entity_group"] != "O" and entity["score"] > score_treshold
+        for entity in output
+    )
+
+
+def label(text):
+    labels = [
+        category
+        for category, pattern in COMPILED_LABEL_PATTERNS.items()
+        if pattern.search(text)
+    ]
+
+    if contains_entities(text):
+        labels += ["ENTITIES"]
+
+    return labels
+
+
+def apply(df, f, show_progress=False):
     if show_progress:
         try:
             from tqdm import tqdm
 
             tqdm.pandas()
-            result = posts.progress_apply(label_text)
+            result = df.progress_apply(f)
         except ImportError:
-            result = posts.apply(label_text)
+            result = df.apply(f)
     else:
-        result = posts.apply(label_text)
+        result = df.apply(f)
     return result
+
+
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
 def embed(posts, show_progress=False, **encode_kwargs):
@@ -145,7 +187,7 @@ def main(args):
     df = df[["created_utc", "subreddit", "author", "post"]]
 
     verbose("Labeling posts")
-    df["labels"] = label(df["post"], show_progress=args.verbose)
+    df["labels"] = apply(df["post"], label, show_progress=args.verbose)
 
     verbose("Embedding posts")
     df["embedding"] = embed(df["post"], show_progress=args.verbose)
@@ -166,7 +208,6 @@ def main(args):
     verbose(f"Writing {newrows} new rows to {args.outputfile}")
     write(df, args)
 
-    return 0 if newrows > 0 else 1
     return 0 if newrows > 0 else 1
 
 

@@ -8,10 +8,10 @@ from sys import exit
 def main(args):
     df = pd.read_feather(args.postfile)
 
-    verbose("Rabeling posts")
-    from makeposts import label
+    verbose("Relabeling posts")
+    from makeposts import apply, label
 
-    df["labels"] = label(df["post"], show_progress=args.verbose)
+    df["labels"] = apply(df["post"], label, show_progress=args.verbose)
 
     verbose(f"Writing {len(df)} rows to {args.postfile}")
     df.to_feather(args.postfile, compression="zstd")

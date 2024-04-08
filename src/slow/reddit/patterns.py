@@ -94,6 +94,7 @@ LABEL_PATTERNS = {
             "my birthday",
             "my childhood",
             "my boss",
+            "my body",
             "our country",
             "boyfriend",
             "girlfriend",
@@ -109,6 +110,8 @@ LABEL_PATTERNS = {
             "break( )?up",
             "my nan(ny)?",
             "as humans",
+            "co(-)?worker(s)?",
+            "I work as",
         )
     ],
     "SEXUAL": [
@@ -167,6 +170,8 @@ LABEL_PATTERNS = {
             "vent(ing)?",
             "p\.s\.",
             "DM me",
+            "as a human( being)?",
+            "your opinion(s)?",
         ),
         REDACTED,
         URL,
@@ -193,6 +198,11 @@ LABEL_PATTERNS = {
             "ASPD",
             "DPDR",
             "NPD",
+            "MDD",
+            "nigger",
+            "jew",
+            "suicide",
+            "hitler",
         )
     ],
 }
