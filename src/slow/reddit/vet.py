@@ -16,7 +16,8 @@ SCORE = {
     MINUS: -1,
 }
 
-HAPPY = "I am feeling good, happy, fine, neutral."
+#HAPPY = "I am feeling good, happy, fine, neutral."
+HAPPY = "I see people."
 
 
 def weigh_subreddits(pdf, vdf):

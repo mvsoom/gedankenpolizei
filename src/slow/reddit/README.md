@@ -1,5 +1,25 @@
 # Training an LLM on reddit data
 
+## PLAN
+
+- Check Mistral finetuning (raw data) on brev.dev to see if it runs with **unsloth** mistral finetuning: DONE: nogo, unsloth too unstable (chheck issues)
+- Use these LoRA settings to do Mistral finetuning for seq classification
+- Trciky bits: Adapt Lucas' medium post for correct padding and end of sentence tokens etc. Should be exactly the same. Use identical lora config here. See notebook on Peters pc
+- Lora optimization: https://huggingface.co/docs/peft/main/en/conceptual_guides/lora#initialization-options
+- continuing from Lora checkpoint: https://github.com/huggingface/peft/issues/593 (still needs to switch head)
+
+## TODO
+
+- Complete HF NLP course
+  Data collator: https://huggingface.co/learn/nlp-course/chapter3/2?fw=pt#processing-the-data
+- NER pipeline for labeling
+- See if dude answered comment on Medium
+- Check if Mistral finetuning uses same LoRA components: https://medium.com/@codersama/fine-tuning-mistral-7b-in-google-colab-with-qlora-complete-guide-60e12d437cca : yes, same models, only 'gate_proj' differed
+- Find service to do training on
+  https://github.com/brevdev/notebooks/blob/main/mistral-finetune-own-data.ipynb
+- See Andrej Karpathy YT videos
+
+
 ## Sequence classification
 
 into good and bad posts:
@@ -17,8 +37,6 @@ combine with unsloth: https://huggingface.co/docs/trl/main/en/sft_trainer#accele
 note mistral better than gemma
 
 can also use BERT for classification if we cant reuse LoRAs (reddit question): https://www.reddit.com/r/LocalLLaMA/comments/1afgibb/experience_replacing_gpt4_with_bert_for/
-
-getting our labels into the format required: see sklearn.preprocessing.MultiLabelBinarizer
 
 can we reuse mistral 7b then? -- yes, it seems so: the classificaton (linear) layer is added after the last layer before converting to a prob distribution over next token. in this way we can use the negative posts when finetuning further to predict SOCs: a good initial guess for further LoRA training
 
@@ -203,3 +221,4 @@ https://medium.com/docler-engineering/webgl-video-manipulation-8d0892b565b6
 ## Other random ideas
 
 - whatsapp (qr code or text to nuber). start slow and then spam
+- coat the sculpture with sugar and make it covered with flies,worms,bees
