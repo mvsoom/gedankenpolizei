@@ -5,7 +5,6 @@
 - Use `stop_sequences` in stream() call for SLOW thoughts to stop after one sentence (newline)
 - Check request constraints:
   > Number of request tokens has exceeded your per-minute rate limit (https://docs.anthropic.com/en/api/rate-limits); see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://www.anthropic.com/contact-sales to discuss your options for a rate limit increase.
-  
 
 ## Latency issues
 
@@ -25,3 +24,9 @@ Quick latency (in sec) testing with a single sentence per tile, one frame per ti
   4.26, 3.93, 5.25, 5.17, 5.78, 7.53
 
 The only other function that takes considerable time is the encode to PNG in order to send it to Claude, which is at most 0.1 sec.
+
+These latencies include Python and Internet overhead. The computation (model) latencies can be checked at https://console.anthropic.com/settings/logs and are O(0.5) sec lower than the estimates above
+
+## Cost issues
+
+We could control for cost rather than latency. Lower latency = higher cost. Costs are dominated by the number of images and their size.
