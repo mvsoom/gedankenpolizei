@@ -1,6 +1,7 @@
 import base64
 import warnings
 from io import BytesIO
+from time import time
 from xml.etree import ElementTree
 
 from anthropic import Anthropic
@@ -62,6 +63,35 @@ def extract_narration(response):
 
 MESSAGES = []
 
+# Pricing:
+# Haiku
+# Input: $0.25 / MTok
+# Output: $1.25 / MTok
+INPUT_TOKENS = []
+OUTPUT_TOKENS = []
+PRICE = (0.25 / 1e6, 1.25 / 1e6)
+
+
+def calculate_average_cost():
+    if "haiku" not in MODEL_NAME:
+        return float("nan")
+
+    if len(INPUT_TOKENS) <= 1:
+        return float("nan")
+
+    totalcost = 0.0
+    dt = 0.0
+
+    for usage, price in zip((INPUT_TOKENS, OUTPUT_TOKENS), PRICE):
+        t, tok = zip(*usage)
+        dt += t[-1] - t[0]
+        totalcost += sum(tok) * price
+
+    dt /= 2
+
+    # Convert to hourly rate as dt is in seconds
+    return totalcost / dt * 3600
+
 
 def describe(i, start, end, tile, stream_text=True):
     global MESSAGES
@@ -111,6 +141,12 @@ def describe(i, start, end, tile, stream_text=True):
 
         narration = prefill + response.content[0].text
 
+        INPUT_TOKENS.append((time(), response.usage.input_tokens))
+        OUTPUT_TOKENS.append((time(), response.usage.output_tokens))
+
+        cost = calculate_average_cost()
+
+        print(f"Cost: ${cost:.2f}/hour")
         print(extract_narration(narration))
 
     # Insert the answer into the messages

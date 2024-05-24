@@ -2,8 +2,7 @@
 
 ## TODO
 
-- Filter only between <narration> tags
-- Use https://github.com/hzeller/timg (https://snapcraft.io/install/timg/raspbian)
+- Use `stop_sequences` in stream() call for SLOW thoughts to stop after one sentence (newline)
 - Check request constraints:
   > Number of request tokens has exceeded your per-minute rate limit (https://docs.anthropic.com/en/api/rate-limits); see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://www.anthropic.com/contact-sales to discuss your options for a rate limit increase.
   
