@@ -10,7 +10,7 @@ from PIL import Image
 
 load_dotenv()
 
-IMAGE_QUALITY = 75
+IMAGE_QUALITY = 85
 IMAGE_MAX_SIZE = (1024, 1024)
 
 # MODEL_NAME = "claude-3-opus-20240229"
@@ -32,7 +32,7 @@ def read_prompt_file(filename):
     return text
 
 
-SYSTEM_PROMPT = read_prompt_file("prompts/system_prompt")
+SYSTEM_PROMPT = read_prompt_file("prompts/system_prompt_novelty_stopwords")
 
 
 def encode_image(image, quality=IMAGE_QUALITY, max_size=IMAGE_MAX_SIZE):
@@ -48,17 +48,19 @@ def encode_image(image, quality=IMAGE_QUALITY, max_size=IMAGE_MAX_SIZE):
     return base64_encoded
 
 
-def extract_narration(response):
+
+def extract_narration_and_novelty(response):
     try:
         root = ElementTree.fromstring(response)
         narration = next(root.iter("narration"))
-        if narration.text:
-            return narration.text
+        text = narration.text if narration.text else ""
+        novelty = narration.get("novelty") if "novelty" in narration.attrib else None
+        return text, novelty
     except (ElementTree.ParseError, StopIteration):
         pass
 
     warnings.warn(f"Invalid narration string: {response}")
-    return ""
+    return "", None
 
 
 MESSAGES = []
@@ -97,7 +99,9 @@ def describe(i, start, end, tile, stream_text=True):
     global MESSAGES
     encoded_png = encode_image(tile)
 
-    prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
+    # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
+
+    prefill = '<narration novelty="'
 
     MESSAGES = MESSAGES + [
         {
@@ -126,10 +130,13 @@ def describe(i, start, end, tile, stream_text=True):
             temperature=TEMPERATURE,
             system=SYSTEM_PROMPT,
             messages=MESSAGES,
+            stop_sequences=["</narration>"],
         ) as stream:
             for text in stream.text_stream:
                 print(text, end="", flush=True)
                 narration += text
+            narration += "</narration>"
+            print("</narration>", flush=True)
     else:
         response = CLIENT.messages.create(
             model=MODEL_NAME,
@@ -137,9 +144,10 @@ def describe(i, start, end, tile, stream_text=True):
             temperature=TEMPERATURE,
             system=SYSTEM_PROMPT,
             messages=MESSAGES,
+            stop_sequences=["</narration>"],
         )
 
-        narration = prefill + response.content[0].text
+        narration = prefill + response.content[0].text + "</narration>"
 
         INPUT_TOKENS.append((time(), response.usage.input_tokens))
         OUTPUT_TOKENS.append((time(), response.usage.output_tokens))
@@ -147,7 +155,9 @@ def describe(i, start, end, tile, stream_text=True):
         cost = calculate_average_cost()
 
         print(f"Cost: ${cost:.2f}/hour")
-        print(extract_narration(narration))
+        text, novelty = extract_narration_and_novelty(narration)
+
+        print(f"[{novelty}]", text)
 
     # Insert the answer into the messages
     last = MESSAGES[-1]
