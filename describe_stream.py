@@ -11,7 +11,6 @@ The -u flag disables buffering.
 import argparse
 import os
 import threading
-from sys import exit
 from threading import Lock
 from time import sleep, time
 
@@ -19,6 +18,7 @@ import cv2
 
 from describe_frame import describe
 from frame import format_time, raw_to_image, sample_frames, timestamp
+from logger import config_app_logger, debug
 from tile import concatenate_images_grid
 
 MONITOR = "monitor"
@@ -120,7 +120,7 @@ def main(args):
     return EXITCODE
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Write descriptions of a video stream to stdout"
     )
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         "name",
         nargs="?",
         default=0,
-        help="Name of the device to open with cv2. If not supplied, open device at /dev/video0",
+        help="Name of the device to open with cv2. If not supplied, open device at %(default)s",
     )
     parser.add_argument(
         "--monitor",
@@ -159,10 +159,38 @@ if __name__ == "__main__":
         help="Number of frames to sample per tile (default: %(default)s)",
     )
 
+    parser.add_argument(
+        "--stderr-level",
+        default="INFO",
+        help="Logging level for stderr (default: %(default)s)",
+    )
+
+    parser.add_argument(
+        "--logfile-level",
+        default="DEBUG",
+        help="Logging level for log file (default: %(default)s)",
+    )
+
+    parser.add_argument(
+        "--logfile",
+        default=None,
+        help="Log file (default: %(default)s)",
+    )
+
     args = parser.parse_args()
 
     if args.dumpframes is not None:
         basename = args.dumpframes or str(args.name)
         args.dumpframes = basename + ".%.6i.jpg"
+
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    config_app_logger(args)
+
+    debug(f"Running main({args})")
 
     exit(main(args))

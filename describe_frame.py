@@ -8,6 +8,8 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from PIL import Image
 
+from logger import debug, debug_messages
+
 load_dotenv()
 
 IMAGE_QUALITY = 85
@@ -46,7 +48,6 @@ def encode_image(image, quality=IMAGE_QUALITY, max_size=IMAGE_MAX_SIZE):
     base64_encoded = base64.b64encode(image_data.getvalue()).decode("utf-8")
 
     return base64_encoded
-
 
 
 def extract_narration_and_novelty(response):
@@ -120,6 +121,10 @@ def describe(i, start, end, tile, stream_text=True):
         {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
     ]
 
+    debug_messages(MESSAGES)
+
+    # print(MESSAGES)
+
     if stream_text:
         print(prefill)
         narration = prefill
@@ -158,6 +163,8 @@ def describe(i, start, end, tile, stream_text=True):
         text, novelty = extract_narration_and_novelty(narration)
 
         print(f"[{novelty}]", text)
+
+    debug(narration)
 
     # Insert the answer into the messages
     last = MESSAGES[-1]
