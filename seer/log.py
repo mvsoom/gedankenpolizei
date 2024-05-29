@@ -36,8 +36,10 @@ def setup_logger():
 
 
 def log_exception(type, value, tb):
-    for line in traceback.TracebackException(type, value, tb).format(chain=True):
-        LOGGER.exception(line, exc_info=False)
+    trace = "".join(traceback.TracebackException(type, value, tb).format(chain=True))
+    for line in trace.splitlines():
+        LOGGER.exception(line.rstrip(), exc_info=False)
+
     # Now call the default exception handler
     sys.__excepthook__(type, value, tb)
 
@@ -46,7 +48,6 @@ def log_exception(type, value, tb):
 LOGGER = setup_logger()
 
 sys.excepthook = log_exception
-
 
 debug = LOGGER.debug
 info = LOGGER.info
