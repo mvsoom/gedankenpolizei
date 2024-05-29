@@ -31,6 +31,8 @@ pure-eval==0.2.2
 pydantic==2.7.1
 pydantic_core==2.18.2
 Pygments==2.18.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.0.1
 PyYAML==6.0.1
 requests==2.32.1
 six==1.16.0
