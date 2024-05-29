@@ -1,6 +1,7 @@
+import datetime
+
 import cv2
 from PIL import Image, ImageDraw, ImageFont
-import datetime
 
 
 def raw_to_image(cv_matrix):

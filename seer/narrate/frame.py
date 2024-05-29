@@ -8,8 +8,9 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from PIL import Image
 
-import env
-from logger import debug, debug_messages, info
+import seer.env as env
+from seer.log import debug, info
+from seer.util import mask_base64_messages
 
 load_dotenv()
 
@@ -122,7 +123,7 @@ def describe(i, start, end, tile, stream_text=True):
         {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
     ]
 
-    debug_messages(MESSAGES)
+    debug(mask_base64_messages(MESSAGES))
 
     # print(MESSAGES)
 

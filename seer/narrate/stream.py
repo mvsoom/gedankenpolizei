@@ -16,11 +16,11 @@ from time import sleep, time
 
 import cv2
 
-import env
-from describe_frame import describe
-from frame import format_time, raw_to_image, sample_frames, timestamp
-from logger import debug
-from tile import concatenate_images_grid
+import seer.env as env
+from seer.image.frame import format_time, raw_to_image, sample_frames, timestamp
+from seer.image.tile import concatenate_images_grid
+from seer.log import debug
+from seer.narrate.frame import describe
 
 MONITOR = "monitor"
 RAWFRAMES = []
