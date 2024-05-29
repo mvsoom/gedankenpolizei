@@ -8,7 +8,8 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from PIL import Image
 
-from logger import debug, debug_messages
+import env
+from logger import debug, debug_messages, info
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ MODEL_NAME = "claude-3-haiku-20240307"
 
 MAX_TOKENS = 1000
 TEMPERATURE = 0.0
-CLIENT = Anthropic()  #  Uses ANTHROPIC_API_KEY env variable
+CLIENT = Anthropic(api_key=env._ANTHROPIC_API_KEY)
 
 
 def read_prompt_file(filename):
@@ -162,7 +163,8 @@ def describe(i, start, end, tile, stream_text=True):
         print(f"Cost: ${cost:.2f}/hour")
         text, novelty = extract_narration_and_novelty(narration)
 
-        print(f"[{novelty}]", text)
+        if int(novelty) > 20:
+            info(f"[{novelty}] {text}")
 
     debug(narration)
 

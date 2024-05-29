@@ -16,9 +16,10 @@ from time import sleep, time
 
 import cv2
 
+import env
 from describe_frame import describe
 from frame import format_time, raw_to_image, sample_frames, timestamp
-from logger import config_app_logger, debug
+from logger import debug
 from tile import concatenate_images_grid
 
 MONITOR = "monitor"
@@ -79,7 +80,7 @@ def main(args):
     global RAWFRAMES
 
     while streaming_thread.is_alive():
-        if len(RAWFRAMES) < args.tilesize:
+        if len(RAWFRAMES) < env.TILESIZE:
             sleep(0.01)
             continue
 
@@ -87,16 +88,17 @@ def main(args):
             ts, rawframes = zip(*RAWFRAMES)
             RAWFRAMES.clear()
 
-        ts, rawframes = sample_frames(ts, rawframes, args.tilesize)
+        ts, rawframes = sample_frames(ts, rawframes, env.TILESIZE)
         frames = [raw_to_image(rawframe) for rawframe in rawframes]
 
-        if args.timestamp:
-            for t, frame in zip(ts, frames):
-                timestamp(t, frame)
+        for t, frame in zip(ts, frames):
+            timestamp(t, frame)
 
         # tile = concatenate_images_grid(frames, 0, (1024, 1024))
         # tile = concatenate_images_grid(frames, 0, (640, 480))
         tile = concatenate_images_grid(frames, 0, (320, 240))
+
+        args.dumpframes = "assets/dump/tile.-%06d.jpg"
 
         if args.dumpframes is not None:
             frameindex += 1
@@ -108,8 +110,7 @@ def main(args):
         print(f"-------------- {frameindex}")
 
         # Execute shell command "timg"
-        if args.timg:
-            os.system("timg " + args.dumpframes % frameindex)
+        os.system("timg " + args.dumpframes % frameindex)
 
         t1 = time()
         narration = describe(frameindex, start, end, tile, stream_text=False)
@@ -120,7 +121,7 @@ def main(args):
     return EXITCODE
 
 
-def parse_args():
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Write descriptions of a video stream to stdout"
     )
@@ -133,63 +134,10 @@ def parse_args():
     parser.add_argument(
         "--monitor",
         action="store_true",
-        help="Whether to monitor the stream in realtime",
-    )
-    parser.add_argument(
-        "--timg",
-        action="store_true",
-        help="Whether to use timg to display the current tile",
-    )
-    parser.add_argument(
-        "--timestamp",
-        action="store_true",
-        default=True,
-        help="Write timestamps of the described frames (default: %(default)s",
-    )
-    parser.add_argument(
-        "--dumpframes",
-        nargs="?",
-        const="",
-        help="Write out processed frames. If arg is given, use it as the basename",
-    )
-    parser.add_argument(
-        "--tilesize",
-        default=TILESIZE,
-        type=int,
-        help="Number of frames to sample per tile (default: %(default)s)",
-    )
-
-    parser.add_argument(
-        "--stderr-level",
-        default="INFO",
-        help="Logging level for stderr (default: %(default)s)",
-    )
-
-    parser.add_argument(
-        "--logfile-level",
-        default="DEBUG",
-        help="Logging level for log file (default: %(default)s)",
-    )
-
-    parser.add_argument(
-        "--logfile",
-        default=None,
-        help="Log file (default: %(default)s)",
+        help="Whether to monitor the stream in realtime (default: %(default)s)",
     )
 
     args = parser.parse_args()
-
-    if args.dumpframes is not None:
-        basename = args.dumpframes or str(args.name)
-        args.dumpframes = basename + ".%.6i.jpg"
-
-    return args
-
-
-if __name__ == "__main__":
-    args = parse_args()
-
-    config_app_logger(args)
 
     debug(f"Running main({args})")
 

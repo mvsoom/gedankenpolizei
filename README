@@ -32,3 +32,10 @@ These latencies include Python and Internet overhead. The computation (model) la
 ## Cost issues
 
 We could control for cost rather than latency. Lower latency = higher cost. Costs are dominated by the number of images and their size.
+
+## Visualization
+
+ASCII
+- https://medium.com/@restlessladder/creating-cool-ascii-animation-and-watching-in-the-terminal-56f1c46ee35a
+- mplayer -fs -vo caca tv:// -tv driver=v4l2:device=/dev/video0
+  * https://forums.raspberrypi.com/viewtopic.php?t=252812

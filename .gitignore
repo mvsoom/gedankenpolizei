@@ -1,5 +1,5 @@
 assets/
 .venv/
 __pycache__/
-.env
+.secrets
 *.log
