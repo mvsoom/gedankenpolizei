@@ -2,7 +2,7 @@
 
 ## TODO
 
-- Set tilesize higher. WARNING: turn off stop sequence "</narration>" to see if the model understands tilesize > 1 -- otherwise it will describe each frame within the til
+- Set TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
 - Check request constraints:
   > Number of request tokens has exceeded your per-minute rate limit (https://docs.anthropic.com/en/api/rate-limits); see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://www.anthropic.com/contact-sales to discuss your options for a rate limit increase.
 

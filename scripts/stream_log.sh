@@ -15,6 +15,8 @@ while true; do
     inotifywait -e modify "$LOGFILE" >/dev/null 2>&1
     LINES_AFTER=$(wc -l <"$LOGFILE")
     LINES_ADDED=$((LINES_AFTER - LINES_BEFORE))
+
+    # Piping output to mdcat results in mdcat needing image links relative to project root rather than relative to the log file. This is mostly what we want anyway.
     tail -n "$LINES_ADDED" "$LOGFILE" | mdcat
     LINES_BEFORE=$LINES_AFTER
 done

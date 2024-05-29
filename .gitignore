@@ -1,5 +1,6 @@
 assets/
+logs/
 .venv/
 __pycache__/
 .secrets
-*.log
+.vscode/

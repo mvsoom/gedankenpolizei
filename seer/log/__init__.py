@@ -1,15 +1,14 @@
 
 import sys
 import traceback
-from logging import FileHandler, Formatter, getLogger
+from logging import FileHandler, getLogger
 from pathlib import Path
 from time import ctime, time
 
 import seer.env as env
-from seer.util import TimeFilter, epoch_url, markdown_link
+from seer.log.format import MarkdownFormatter, epoch_url, markdown_link
 
 STARTTIME = time()
-FORMAT = "- %(levelname).1s %(relative)s ```%(message)s```"
 
 
 def setup_logger():
@@ -20,8 +19,7 @@ def setup_logger():
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     h = FileHandler(log_file_path, mode="a")
-    h.addFilter(TimeFilter(STARTTIME))
-    h.setFormatter(Formatter(FORMAT))
+    h.setFormatter(MarkdownFormatter(STARTTIME))
     logger.addHandler(h)
 
     # Write out current time and environment variables
@@ -37,10 +35,10 @@ def setup_logger():
 
 def log_exception(type, value, tb):
     trace = "".join(traceback.TracebackException(type, value, tb).format(chain=True))
-    for line in trace.splitlines():
-        LOGGER.exception(line.rstrip(), exc_info=False)
 
-    # Now call the default exception handler
+    LOGGER.exception(trace.strip(), exc_info=False)
+
+    # Pass on to the default exception handler
     sys.__excepthook__(type, value, tb)
 
 

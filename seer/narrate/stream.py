@@ -9,7 +9,6 @@ The -u flag disables buffering.
 """
 
 import argparse
-import os
 import threading
 from threading import Lock
 from time import sleep, time
@@ -26,9 +25,6 @@ MONITOR = "monitor"
 RAWFRAMES = []
 EXITCODE = 1
 LOCK = Lock()
-
-
-TILESIZE = 4
 
 
 def stream(name, monitor):
@@ -80,7 +76,7 @@ def main(args):
     global RAWFRAMES
 
     while streaming_thread.is_alive():
-        if len(RAWFRAMES) < env.TILESIZE:
+        if len(RAWFRAMES) < env.TILE_NUM_FRAMES:
             sleep(0.01)
             continue
 
@@ -88,7 +84,7 @@ def main(args):
             ts, rawframes = zip(*RAWFRAMES)
             RAWFRAMES.clear()
 
-        ts, rawframes = sample_frames(ts, rawframes, env.TILESIZE)
+        ts, rawframes = sample_frames(ts, rawframes, env.TILE_NUM_FRAMES)
         frames = [raw_to_image(rawframe) for rawframe in rawframes]
 
         for t, frame in zip(ts, frames):
@@ -96,21 +92,12 @@ def main(args):
 
         # tile = concatenate_images_grid(frames, 0, (1024, 1024))
         # tile = concatenate_images_grid(frames, 0, (640, 480))
-        tile = concatenate_images_grid(frames, 0, (320, 240))
-
-        args.dumpframes = "assets/dump/tile.-%06d.jpg"
-
-        if args.dumpframes is not None:
-            frameindex += 1
-            tile.save(args.dumpframes % frameindex)
+        tile = concatenate_images_grid(frames, 0, env.TILE_SIZE)
 
         start = format_time(ts[0])
         end = format_time(ts[-1])
 
         print(f"-------------- {frameindex}")
-
-        # Execute shell command "timg"
-        os.system("timg " + args.dumpframes % frameindex)
 
         t1 = time()
         narration = describe(frameindex, start, end, tile, stream_text=False)

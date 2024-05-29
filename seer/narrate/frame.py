@@ -165,7 +165,7 @@ def describe(i, start, end, tile, stream_text=True):
         text, novelty = extract_narration_and_novelty(narration)
 
         if int(novelty) > 20:
-            info(f"[{novelty}] {text}")
+            info(f"[{novelty}] {text}", extra={"image": tile})
 
     debug(narration)
 
