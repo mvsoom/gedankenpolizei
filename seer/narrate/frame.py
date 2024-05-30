@@ -9,26 +9,31 @@ from seer.log import debug, info
 from seer.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
+    MEMORY_NOVELTY_TRESHOLD,
+    MEMORY_SIZE,
     MODEL_NAME,
     MODEL_TEMPERATURE,
-    SYSTEM_PROMPT,
+    NOVELTY_THRESHOLD,
+    RESPONSE_TIMEOUT,
+    SYSTEM_PROMPTFILE,
 )
 from seer.narrate.cost import APICosts
-from seer.util import mask_base64_messages
+from seer.util import mask_base64_messages, read_prompt_file
 
 CLIENT = Anthropic(api_key=env._ANTHROPIC_API_KEY)
+SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPTFILE)
 
 MESSAGES = []
 APICOSTS = APICosts(MODEL_NAME)
 
-
 def extract_narration_and_novelty(response):
+    # FIXME
     try:
         root = ElementTree.fromstring(response)
         narration = next(root.iter("narration"))
         text = narration.text if narration.text else ""
         novelty = narration.get("novelty") if "novelty" in narration.attrib else None
-        return text, novelty
+        return text, int(novelty)
     except (ElementTree.ParseError, StopIteration):
         pass
 
@@ -36,14 +41,13 @@ def extract_narration_and_novelty(response):
     return "", None
 
 
-def describe(i, start, end, tile, stream_text=True):
+def narrate(tile, start, end):
     global MESSAGES, APICOSTS
-
-    encoded_jpeg = encode_image(tile, max_size=IMAGE_MAX_SIZE)
 
     # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
 
     prefill = '<narration novelty="'
+    encoded_jpeg = encode_image(tile, max_size=IMAGE_MAX_SIZE)
 
     MESSAGES = MESSAGES + [
         {
@@ -75,6 +79,7 @@ def describe(i, start, end, tile, stream_text=True):
         system=SYSTEM_PROMPT,
         messages=MESSAGES,
         stop_sequences=["</narration>"],
+        timeout=RESPONSE_TIMEOUT,
     )
 
     APICOSTS.ingest(response)
@@ -84,7 +89,7 @@ def describe(i, start, end, tile, stream_text=True):
 
     text, novelty = extract_narration_and_novelty(narration)
 
-    if int(novelty) > 20:
+    if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})
 
     debug(narration)
@@ -95,13 +100,12 @@ def describe(i, start, end, tile, stream_text=True):
     last["content"][0]["text"] = narration
 
     # If not novel enough, forget the current interaction
-    if int(novelty) <= 20:
+    if not (novelty > MEMORY_NOVELTY_TRESHOLD):
         MESSAGES = MESSAGES[:-2]
 
-    IMAGE_MEMORY_SIZE = 1
-    max_messages = 2 * IMAGE_MEMORY_SIZE
+    max_messages = 2 * MEMORY_SIZE
 
-    if len(MESSAGES) > max_messages:  # fails for memoriy size = 0
+    if len(MESSAGES) > max_messages:  # FIXME: fails for memoriy size = 0
         MESSAGES = MESSAGES[-max_messages:]
 
     return narration

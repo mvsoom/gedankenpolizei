@@ -1,5 +1,5 @@
 """
-Write descriptions of a video stream to stdout.
+Write descriptions of a video stream line by line to stdout.
 
 Usage to append to a file in realtime:
 
@@ -15,11 +15,11 @@ from time import sleep, time
 
 import cv2
 
-import seer.env as env
 from seer.image.frame import format_time, raw_to_image, sample_frames, timestamp
 from seer.image.tile import concatenate_images_grid
 from seer.log import debug
-from seer.narrate.frame import describe
+from seer.narrate import TILE_NUM_FRAMES, TILE_SIZE
+from seer.narrate.frame import narrate
 
 MONITOR = "monitor"
 RAWFRAMES = []
@@ -71,12 +71,10 @@ def main(args):
     streaming_thread.daemon = True
     streaming_thread.start()
 
-    frameindex = 0
-
     global RAWFRAMES
 
     while streaming_thread.is_alive():
-        if len(RAWFRAMES) < env.TILE_NUM_FRAMES:
+        if len(RAWFRAMES) < TILE_NUM_FRAMES:
             sleep(0.01)
             continue
 
@@ -84,20 +82,18 @@ def main(args):
             ts, rawframes = zip(*RAWFRAMES)
             RAWFRAMES.clear()
 
-        ts, rawframes = sample_frames(ts, rawframes, env.TILE_NUM_FRAMES)
+        ts, rawframes = sample_frames(ts, rawframes, TILE_NUM_FRAMES)
         frames = [raw_to_image(rawframe) for rawframe in rawframes]
 
         for t, frame in zip(ts, frames):
             timestamp(t, frame)
 
-        # tile = concatenate_images_grid(frames, 0, (1024, 1024))
-        # tile = concatenate_images_grid(frames, 0, (640, 480))
-        tile = concatenate_images_grid(frames, 0, env.TILE_SIZE)
+        tile = concatenate_images_grid(frames, 0, TILE_SIZE)
 
         start = format_time(ts[0])
         end = format_time(ts[-1])
 
-        describe(frameindex, start, end, tile, stream_text=False)
+        narrate(tile, start, end)
 
     return EXITCODE
 
