@@ -66,11 +66,7 @@ def narrate(tile, start, end):
         {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
     ]
 
-    debug(f"Sending: {mask_base64_messages(MESSAGES)}")
-
-    # print(MESSAGES)
-
-    print(len(MESSAGES))
+    debug(f"Sending {len(MESSAGES)} messages: {mask_base64_messages(MESSAGES)}")
 
     response = CLIENT.messages.create(
         model=MODEL_NAME,
@@ -108,4 +104,4 @@ def narrate(tile, start, end):
     if len(MESSAGES) > max_messages:  # FIXME: fails for memoriy size = 0
         MESSAGES = MESSAGES[-max_messages:]
 
-    return narration
+    return text if novelty > NOVELTY_THRESHOLD else ""

@@ -93,7 +93,23 @@ def main(args):
         start = format_time(ts[0])
         end = format_time(ts[-1])
 
-        narrate(tile, start, end)
+        # FIXME
+        try:
+            narration = narrate(tile, start, end)
+
+            # Replace all newlines with spaces and trim
+            narration = narration.replace("\n", " ").strip()
+            if len(narration) > 0:
+                print(narration)
+
+        except Exception as e:
+            print(f"Error narrating: {e}")
+            continue
+
+        # if args.json:
+        #     print(result.dumps())
+        # else:
+        #     print(result['narration'])
 
     return EXITCODE
 
