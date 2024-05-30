@@ -1,4 +1,6 @@
+import base64
 import datetime
+from io import BytesIO
 
 import cv2
 from PIL import Image, ImageDraw, ImageFont
@@ -40,3 +42,17 @@ def timestamp(t, frame):
     font = ImageFont.load_default(size=fontsize)
     text_color = "#66FF00"
     draw.text((10, 10), formatted_time, font=font, fill=text_color)
+
+
+def encode_image(image, max_size=None):
+    """Encode an image to JPEG in base64 format"""
+    if max_size:
+        if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+    image_data = BytesIO()
+    image.save(image_data, format="JPEG")
+    image_data.seek(0)
+    base64_encoded = base64.b64encode(image_data.getvalue()).decode("utf-8")
+
+    return base64_encoded

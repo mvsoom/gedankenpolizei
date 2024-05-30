@@ -97,13 +97,7 @@ def main(args):
         start = format_time(ts[0])
         end = format_time(ts[-1])
 
-        print(f"-------------- {frameindex}")
-
-        t1 = time()
-        narration = describe(frameindex, start, end, tile, stream_text=False)
-        latency = time() - t1
-
-        print(f"-------------- {latency:.2f} s")
+        describe(frameindex, start, end, tile, stream_text=False)
 
     return EXITCODE
 

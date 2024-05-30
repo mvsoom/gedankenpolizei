@@ -77,7 +77,7 @@ class MarkdownFormatter(logging.Formatter):
 
         # Add images if present
         images = self.get_images(record)
-        if images:
+        if images and env.LOG_IMAGES:
             message += "  \n"  # Hard break
             lines = [markdown_image(image) + "  " for image in images]
             message += indent_lines(lines)

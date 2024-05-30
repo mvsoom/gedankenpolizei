@@ -47,6 +47,7 @@ LOGGER = setup_logger()
 
 sys.excepthook = log_exception
 
+log = LOGGER.log
 debug = LOGGER.debug
 info = LOGGER.info
 warning = LOGGER.warning

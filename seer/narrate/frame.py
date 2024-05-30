@@ -1,38 +1,25 @@
-import base64
 import warnings
-from io import BytesIO
-from time import time
 from xml.etree import ElementTree
 
 from anthropic import Anthropic
-from PIL import Image
 
 import seer.env as env
+from seer.image.frame import encode_image
 from seer.log import debug, info
-from seer.util import mask_base64_messages, read_prompt_file
-
-IMAGE_MAX_SIZE = (1024, 1024)  # Restriction from the Claude API
-MAX_TOKENS = 300
-# MODEL_NAME = "claude-3-opus-20240229"
-# MODEL_NAME = "claude-3-sonnet-20240229"
-MODEL_NAME = env.NARRATE_MODEL_NAME
-MODEL_TEMPERATURE = env.NARRATE_MODEL_TEMPERATURE
-SYSTEM_PROMPT = read_prompt_file(env.NARRATE_SYSTEM_PROMPTFILE)
+from seer.narrate import (
+    IMAGE_MAX_SIZE,
+    MAX_TOKENS,
+    MODEL_NAME,
+    MODEL_TEMPERATURE,
+    SYSTEM_PROMPT,
+)
+from seer.narrate.cost import APICosts
+from seer.util import mask_base64_messages
 
 CLIENT = Anthropic(api_key=env._ANTHROPIC_API_KEY)
 
-
-def encode_image(image, max_size=IMAGE_MAX_SIZE):
-    # Resize the image if it exceeds the maximum size
-    if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
-        image.thumbnail(max_size, Image.Resampling.LANCZOS)
-
-    image_data = BytesIO()
-    image.save(image_data, format="JPEG")
-    image_data.seek(0)
-    base64_encoded = base64.b64encode(image_data.getvalue()).decode("utf-8")
-
-    return base64_encoded
+MESSAGES = []
+APICOSTS = APICosts(MODEL_NAME)
 
 
 def extract_narration_and_novelty(response):
@@ -49,41 +36,10 @@ def extract_narration_and_novelty(response):
     return "", None
 
 
-MESSAGES = []
-
-# Pricing:
-# Haiku
-# Input: $0.25 / MTok
-# Output: $1.25 / MTok
-INPUT_TOKENS = []
-OUTPUT_TOKENS = []
-PRICE = (0.25 / 1e6, 1.25 / 1e6)
-
-
-def calculate_average_cost():
-    if "haiku" not in MODEL_NAME:
-        return float("nan")
-
-    if len(INPUT_TOKENS) <= 1:
-        return float("nan")
-
-    totalcost = 0.0
-    dt = 0.0
-
-    for usage, price in zip((INPUT_TOKENS, OUTPUT_TOKENS), PRICE):
-        t, tok = zip(*usage)
-        dt += t[-1] - t[0]
-        totalcost += sum(tok) * price
-
-    dt /= 2
-
-    # Convert to hourly rate as dt is in seconds
-    return totalcost / dt * 3600
-
-
 def describe(i, start, end, tile, stream_text=True):
-    global MESSAGES
-    encoded_jpeg = encode_image(tile)
+    global MESSAGES, APICOSTS
+
+    encoded_jpeg = encode_image(tile, max_size=IMAGE_MAX_SIZE)
 
     # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
 
@@ -106,9 +62,11 @@ def describe(i, start, end, tile, stream_text=True):
         {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
     ]
 
-    debug(mask_base64_messages(MESSAGES))
+    debug(f"Sending: {mask_base64_messages(MESSAGES)}")
 
     # print(MESSAGES)
+
+    print(len(MESSAGES))
 
     response = CLIENT.messages.create(
         model=MODEL_NAME,
@@ -119,17 +77,14 @@ def describe(i, start, end, tile, stream_text=True):
         stop_sequences=["</narration>"],
     )
 
+    APICOSTS.ingest(response)
+    APICOSTS.log_current_costs(info)
+
     narration = prefill + response.content[0].text + "</narration>"
 
-    INPUT_TOKENS.append((time(), response.usage.input_tokens))
-    OUTPUT_TOKENS.append((time(), response.usage.output_tokens))
-
-    cost = calculate_average_cost()
-
-    print(f"Cost: ${cost:.2f}/hour")
     text, novelty = extract_narration_and_novelty(narration)
 
-    if int(novelty) > 0:
+    if int(novelty) > 20:
         info(f"[{novelty}] {text}", extra={"image": tile})
 
     debug(narration)
@@ -139,8 +94,14 @@ def describe(i, start, end, tile, stream_text=True):
     assert last["role"] == "assistant"
     last["content"][0]["text"] = narration
 
-    if len(MESSAGES) > 4:
-        # Retain last 4 messages
-        MESSAGES = MESSAGES[-4:]
+    # If not novel enough, forget the current interaction
+    if int(novelty) <= 20:
+        MESSAGES = MESSAGES[:-2]
+
+    IMAGE_MEMORY_SIZE = 1
+    max_messages = 2 * IMAGE_MEMORY_SIZE
+
+    if len(MESSAGES) > max_messages:  # fails for memoriy size = 0
+        MESSAGES = MESSAGES[-max_messages:]
 
     return narration
