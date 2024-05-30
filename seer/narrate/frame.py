@@ -5,47 +5,30 @@ from time import time
 from xml.etree import ElementTree
 
 from anthropic import Anthropic
-from dotenv import load_dotenv
 from PIL import Image
 
 import seer.env as env
 from seer.log import debug, info
-from seer.util import mask_base64_messages
+from seer.util import mask_base64_messages, read_prompt_file
 
-load_dotenv()
-
-IMAGE_QUALITY = 85
-IMAGE_MAX_SIZE = (1024, 1024)
-
+IMAGE_MAX_SIZE = (1024, 1024)  # Restriction from the Claude API
+MAX_TOKENS = 300
 # MODEL_NAME = "claude-3-opus-20240229"
 # MODEL_NAME = "claude-3-sonnet-20240229"
-MODEL_NAME = "claude-3-haiku-20240307"
+MODEL_NAME = env.NARRATE_MODEL_NAME
+MODEL_TEMPERATURE = env.NARRATE_MODEL_TEMPERATURE
+SYSTEM_PROMPT = read_prompt_file(env.NARRATE_SYSTEM_PROMPTFILE)
 
-MAX_TOKENS = 1000
-TEMPERATURE = 0.0
 CLIENT = Anthropic(api_key=env._ANTHROPIC_API_KEY)
 
 
-def read_prompt_file(filename):
-    with open(filename, "r") as file:
-        lines = file.readlines()
-    text = ""
-    for line in lines:
-        if not line.strip().startswith("#"):
-            text += line
-    return text
-
-
-SYSTEM_PROMPT = read_prompt_file("prompts/system_prompt_novelty_stopwords")
-
-
-def encode_image(image, quality=IMAGE_QUALITY, max_size=IMAGE_MAX_SIZE):
+def encode_image(image, max_size=IMAGE_MAX_SIZE):
     # Resize the image if it exceeds the maximum size
     if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
 
     image_data = BytesIO()
-    image.save(image_data, format="PNG", optimize=True, quality=quality)
+    image.save(image_data, format="JPEG")
     image_data.seek(0)
     base64_encoded = base64.b64encode(image_data.getvalue()).decode("utf-8")
 
@@ -100,7 +83,7 @@ def calculate_average_cost():
 
 def describe(i, start, end, tile, stream_text=True):
     global MESSAGES
-    encoded_png = encode_image(tile)
+    encoded_jpeg = encode_image(tile)
 
     # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
 
@@ -114,8 +97,8 @@ def describe(i, start, end, tile, stream_text=True):
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": "image/png",
-                        "data": encoded_png,
+                        "media_type": "image/jpeg",
+                        "data": encoded_jpeg,
                     },
                 }
             ],
@@ -127,45 +110,27 @@ def describe(i, start, end, tile, stream_text=True):
 
     # print(MESSAGES)
 
-    if stream_text:
-        print(prefill)
-        narration = prefill
+    response = CLIENT.messages.create(
+        model=MODEL_NAME,
+        max_tokens=MAX_TOKENS,
+        temperature=MODEL_TEMPERATURE,
+        system=SYSTEM_PROMPT,
+        messages=MESSAGES,
+        stop_sequences=["</narration>"],
+    )
 
-        with CLIENT.messages.stream(
-            model=MODEL_NAME,
-            max_tokens=MAX_TOKENS,
-            temperature=TEMPERATURE,
-            system=SYSTEM_PROMPT,
-            messages=MESSAGES,
-            stop_sequences=["</narration>"],
-        ) as stream:
-            for text in stream.text_stream:
-                print(text, end="", flush=True)
-                narration += text
-            narration += "</narration>"
-            print("</narration>", flush=True)
-    else:
-        response = CLIENT.messages.create(
-            model=MODEL_NAME,
-            max_tokens=MAX_TOKENS,
-            temperature=TEMPERATURE,
-            system=SYSTEM_PROMPT,
-            messages=MESSAGES,
-            stop_sequences=["</narration>"],
-        )
+    narration = prefill + response.content[0].text + "</narration>"
 
-        narration = prefill + response.content[0].text + "</narration>"
+    INPUT_TOKENS.append((time(), response.usage.input_tokens))
+    OUTPUT_TOKENS.append((time(), response.usage.output_tokens))
 
-        INPUT_TOKENS.append((time(), response.usage.input_tokens))
-        OUTPUT_TOKENS.append((time(), response.usage.output_tokens))
+    cost = calculate_average_cost()
 
-        cost = calculate_average_cost()
+    print(f"Cost: ${cost:.2f}/hour")
+    text, novelty = extract_narration_and_novelty(narration)
 
-        print(f"Cost: ${cost:.2f}/hour")
-        text, novelty = extract_narration_and_novelty(narration)
-
-        if int(novelty) > 20:
-            info(f"[{novelty}] {text}", extra={"image": tile})
+    if int(novelty) > 0:
+        info(f"[{novelty}] {text}", extra={"image": tile})
 
     debug(narration)
 

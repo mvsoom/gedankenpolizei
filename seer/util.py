@@ -1,6 +1,16 @@
 from copy import deepcopy
 
 
+def read_prompt_file(filename):
+    with open(filename, "r") as file:
+        lines = file.readlines()
+    text = ""
+    for line in lines:
+        if not line.strip().startswith("#"):
+            text += line
+    return text
+
+
 def mask_base64_messages(message):
     """Mask base64 data in the Claude API messages"""
     masked_message = deepcopy(message)
