@@ -3,6 +3,7 @@
 Note: variables are strings by default, unless they can be evaluated as a Python literal. For example `X=5` in the .env file will result in `env.X == 5` rather than `env.X == "5"`.
 """
 
+import fnmatch as _fnmatch
 import os as _os
 
 import dotenv as _dotenv
@@ -27,8 +28,12 @@ _env_vars = {
     for VARIABLE in _dotenv.dotenv_values(f).keys()
 }
 
+def glob(pattern):
+    """Return a dictionary of all dotenv variables that match the given glob pattern"""
+    return {k: v for k, v in _env_vars.items() if _fnmatch.fnmatch(k, pattern)}
+
+
 globals().update(_env_vars)
-__all__ = list(_env_vars.keys())
 
 if __name__ == "__main__":
     print(_env_vars)

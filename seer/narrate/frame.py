@@ -9,7 +9,7 @@ from seer.log import debug, info
 from seer.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
-    MEMORY_NOVELTY_TRESHOLD,
+    MEMORY_NOVELTY_THRESHOLD,
     MEMORY_SIZE,
     MODEL_NAME,
     MODEL_TEMPERATURE,
@@ -100,7 +100,7 @@ def narrate(tile, start, end):
     last["content"][0]["text"] = narration
 
     # If not novel enough, forget the current interaction
-    if not (novelty > MEMORY_NOVELTY_TRESHOLD):
+    if not (novelty > MEMORY_NOVELTY_THRESHOLD):
         MESSAGES = MESSAGES[:-2]
 
     max_messages = 2 * MEMORY_SIZE

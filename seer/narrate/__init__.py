@@ -1,18 +1,11 @@
 from seer import env
-from seer.util import read_prompt_file
 
+# Import all NARRATE_* dotenv variables into this namespace
+globals().update(
+    {k.removeprefix("NARRATE_"): v for k, v in env.glob("NARRATE_*").items()}
+)
+
+# Then, declare some more hard constants
 IMAGE_MAX_SIZE = (1024, 1024)  #  Claude API will downsize if larger than this
 MAX_TOKENS = 300  # Max tokens to generate before stopping
 RESPONSE_TIMEOUT = 10  # seconds
-
-TILE_NUM_FRAMES = env.NARRATE_TILE_NUM_FRAMES
-TILE_SIZE = env.NARRATE_TILE_SIZE
-
-MODEL_NAME = env.NARRATE_MODEL_NAME
-MODEL_TEMPERATURE = env.NARRATE_MODEL_TEMPERATURE
-SYSTEM_PROMPTFILE = env.NARRATE_SYSTEM_PROMPTFILE
-
-NOVELTY_THRESHOLD = env.NARRATE_NOVELTY_TRESHOLD
-
-MEMORY_SIZE = env.NARRATE_MEMORY_SIZE
-MEMORY_NOVELTY_TRESHOLD = env.NARRATE_MEMORY_NOVELTY_TRESHOLD
