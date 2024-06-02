@@ -13,6 +13,7 @@
 ### `seer.narrate`
 
 - Fix seer.narrate.frame, seriously
+- Deal with RESPONSE_TIMEOUT and other API errors
 - Set NARRATE_TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands NARRATE_TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
 - Make a second log file that always records everything at the debug level
 

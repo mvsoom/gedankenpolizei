@@ -35,10 +35,8 @@ def setup_logger():
     # Write out current time and environment variables
     header = markdown_link(ctime(STARTTIME), epoch_url(STARTTIME))
     h.stream.write(f"# {header}\n")
-    public_env_vars = {
-        k: v for (k, v) in env._env_vars.items() if not k.startswith("_")
-    }
-    logger.debug(f"Environment: {public_env_vars}")
+
+    logger.debug(f"Environment: {env.glob('*')}")
 
     return logger
 

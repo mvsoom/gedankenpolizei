@@ -20,7 +20,7 @@ from seer.narrate import (
 from seer.narrate.cost import APICosts
 from seer.util import mask_base64_messages, read_prompt_file
 
-CLIENT = Anthropic(api_key=env._ANTHROPIC_API_KEY)
+CLIENT = Anthropic(api_key=env.ANTHROPIC_API_KEY)
 SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPTFILE)
 
 MESSAGES = []

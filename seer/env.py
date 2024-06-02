@@ -8,9 +8,7 @@ import os as _os
 
 import dotenv as _dotenv
 
-_ENV_FILES = [".secrets", ".env"]
-
-[_dotenv.load_dotenv(f) for f in _ENV_FILES]
+_ENV_FILES = ["secrets", "env"]
 
 
 def _parse(value):
@@ -22,10 +20,10 @@ def _parse(value):
 
 _env_vars = {
     VARIABLE: _parse(
-        VALUE := _os.getenv(VARIABLE)
+        _os.getenv(VARIABLE, VALUE)
     )  # getenv() enables overriding .env values with system environment variables
     for f in _ENV_FILES
-    for VARIABLE in _dotenv.dotenv_values(f).keys()
+    for VARIABLE, VALUE in _dotenv.dotenv_values(f).items()
 }
 
 def glob(pattern):
