@@ -22,8 +22,8 @@ fi
 ffmpeg -re -i "$VIDEO_FILE" -f v4l2 "$VIDEO_STREAM" -loglevel panic &
 FFMPEG_PID=$!
 
-# Start the python command in the foreground
-python -m seer.narrate.stream "$VIDEO_STREAM" $DESCRIBE_STREAM_ARGS
+# Start the unbuffered python command in the foreground
+python -u -m seer.narrate.stream "$VIDEO_STREAM" $DESCRIBE_STREAM_ARGS
 
 # When the python command exits, kill the ffmpeg command
 kill $FFMPEG_PID

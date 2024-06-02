@@ -1,14 +1,15 @@
 """
-Write descriptions of a video stream line by line to stdout.
+Narrate a video stream line by line to stdout.
 
-Usage to append to a file in realtime:
+Invoke this as:
 
-    python -u describe_stream.py [...] >> descriptions
+    `python -u -m seer.narrate.stream [args] | [next program]`
 
-The -u flag disables buffering.
+The -u flag disables buffering and is crucial for realtime output.
 """
 
 import argparse
+import json
 import threading
 from threading import Lock
 from time import sleep, time
@@ -100,24 +101,23 @@ def main(args):
             # Replace all newlines with spaces and trim
             narration = narration.replace("\n", " ").strip()
             if len(narration) > 0:
-                print(narration)
+                if not args.jsonl:
+                    # Important to flush to ensure realtime output
+                    print(narration, flush=True)
+                else:
+                    # Important to flush to ensure realtime output
+                    output = {"t": time(), "text": narration}
+                    print(json.dumps(output), flush=True)
 
         except Exception as e:
             print(f"Error narrating: {e}")
             continue
 
-        # if args.json:
-        #     print(result.dumps())
-        # else:
-        #     print(result['narration'])
-
     return EXITCODE
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Write descriptions of a video stream to stdout"
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "name",
         nargs="?",
@@ -127,7 +127,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--monitor",
         action="store_true",
-        help="Whether to monitor the stream in realtime (default: %(default)s)",
+        help="Open a window to monitor the stream in realtime (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="Output narrations with metadata in JSONL format(default: %(default)s)",
     )
 
     args = parser.parse_args()

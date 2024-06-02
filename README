@@ -2,10 +2,13 @@
 
 ## TODO
 
+### `seer.narrate`
+
+- Fix seer.narrate.frame, seriously
+- Implement --json switch in `seer.stream` to output json lines for metadata consumption
+  * This can also power a --replay mode where the json is used to simulate the ~~descriptions~~narrations being fed to the thoughts stream
 - Set NARRATE_TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands NARRATE_TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
 - Make a "PLUMBING" log level that is lower than DEBUG for logging API messages etc. Also make a second log file that always records everything
-- Check request constraints:
-  > Number of request tokens has exceeded your per-minute rate limit (https://docs.anthropic.com/en/api/rate-limits); see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://www.anthropic.com/contact-sales to discuss your options for a rate limit increase.
 
 ## Latency issues
 
