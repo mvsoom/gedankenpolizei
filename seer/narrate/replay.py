@@ -5,7 +5,7 @@ Replay a .jsonl file containing narrations from `seer.narrate.stream`
 
 import argparse
 import json
-import time
+from time import sleep, time
 
 
 def main(args):
@@ -13,11 +13,18 @@ def main(args):
         data = [json.loads(line) for line in file]
 
     for n in range(len(data)):
-        print(data[n]["text"], flush=True)
+        if args.jsonl:
+            # Update the timestamp to match the current time
+            new_data = data[n].copy()
+            new_data["t"] = time()
+
+            print(json.dumps(new_data), flush=True)
+        else:
+            print(data[n]["text"], flush=True)
 
         if n < len(data) - 1:
             dt = data[n + 1]["t"] - data[n]["t"]
-            time.sleep(dt * args.scale)
+            sleep(dt * args.scale)
 
     return 0
 
@@ -25,6 +32,11 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("file", help="Path to the .jsonl file")
+    parser.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="Echo the narrations in JSONL format (default: %(default)s)",
+    )
     parser.add_argument(
         "--scale",
         type=float,
