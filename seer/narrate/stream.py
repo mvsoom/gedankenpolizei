@@ -99,10 +99,8 @@ def main(args):
             narration = narration.replace("\n", " ").strip()
             if len(narration) > 0:
                 if not args.jsonl:
-                    # Important to flush to ensure realtime output
                     print(narration, flush=True)
                 else:
-                    # Important to flush to ensure realtime output
                     output = {"t": time(), "text": narration}
                     print(json.dumps(output), flush=True)
 
