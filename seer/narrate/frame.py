@@ -5,7 +5,7 @@ from anthropic import Anthropic
 
 import seer.env as env
 from seer.image.frame import encode_image
-from seer.log import debug, info
+from seer.log import debug, info, verbose
 from seer.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
@@ -79,7 +79,7 @@ def narrate(tile, start, end):
     )
 
     APICOSTS.ingest(response)
-    APICOSTS.log_current_costs(info)
+    APICOSTS.log_current_costs(verbose)
 
     narration = prefill + response.content[0].text + "</narration>"
 

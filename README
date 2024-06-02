@@ -2,13 +2,19 @@
 
 ## TODO
 
+### General
+
+- Overloaded errors: can and will happen (https://www.reddit.com/r/ClaudeAI/comments/1cdptpp/claude_api_is_not_ready_for_production_apps/) both in narrate and thoughts
+
+### `seer.thoughts`
+
+- Experiment with temperature
+
 ### `seer.narrate`
 
 - Fix seer.narrate.frame, seriously
-- Implement --json switch in `seer.stream` to output json lines for metadata consumption
-  * This can also power a --replay mode where the json is used to simulate the ~~descriptions~~narrations being fed to the thoughts stream
 - Set NARRATE_TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands NARRATE_TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
-- Make a "PLUMBING" log level that is lower than DEBUG for logging API messages etc. Also make a second log file that always records everything
+- Make a second log file that always records everything at the debug level
 
 ## Latency issues
 

@@ -1,7 +1,7 @@
 
+import logging
 import sys
 import traceback
-from logging import FileHandler, getLogger
 from pathlib import Path
 from time import ctime, time
 
@@ -10,15 +10,25 @@ from seer.log.format import MarkdownFormatter, epoch_url, markdown_link
 
 STARTTIME = time()
 
+def setup_verbose():
+    VERBOSE = 15
+    logging.addLevelName(VERBOSE, "VERBOSE")
+
+    def verbose(self, message, *args, **kws):
+        if self.isEnabledFor(VERBOSE):
+            self._log(VERBOSE, message, args, **kws)
+
+    logging.Logger.verbose = verbose
+
 
 def setup_logger():
-    logger = getLogger(Path(sys.argv[0]).stem)
+    logger = logging.getLogger(Path(sys.argv[0]).stem)
     logger.setLevel(env.LOG_LEVEL)
 
     log_file_path = Path(env.LOG_DIR) / env.LOG_FILE
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    h = FileHandler(log_file_path, mode="a")
+    h = logging.FileHandler(log_file_path, mode="a")
     h.setFormatter(MarkdownFormatter(STARTTIME))
     logger.addHandler(h)
 
@@ -42,12 +52,14 @@ def log_exception(type, value, tb):
     sys.__excepthook__(type, value, tb)
 
 
-# Setup the global LOGGER object
+# Setup logging and the global LOGGER object
+setup_verbose()
 LOGGER = setup_logger()
 
 sys.excepthook = log_exception
 
 debug = LOGGER.debug
+verbose = LOGGER.verbose
 info = LOGGER.info
 warning = LOGGER.warning
 error = LOGGER.error
