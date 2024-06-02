@@ -1,14 +1,7 @@
-"""
-Narrate a video stream line by line to stdout.
-
-Invoke this as:
-
-    `python -u -m seer.narrate.stream [args] | [next program]`
-
-The -u flag disables buffering and is crucial for realtime output.
-"""
+"""Narrate a video stream line by line to stdout"""
 
 import argparse
+import functools
 import json
 import threading
 from threading import Lock
@@ -21,6 +14,10 @@ from seer.image.tile import concatenate_images_grid
 from seer.log import debug
 from seer.narrate import TILE_NUM_FRAMES, TILE_SIZE
 from seer.narrate.frame import narrate
+
+# Ensure print always flushes to stdout
+print = functools.partial(print, flush=True)
+
 
 MONITOR = "monitor"
 RAWFRAMES = []

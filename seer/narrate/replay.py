@@ -1,11 +1,13 @@
 
-"""
-Replay a .jsonl file containing narrations from `seer.narrate.stream`
-"""
+"""Replay a .jsonl file containing narrations from `seer.narrate.stream`"""
 
 import argparse
+import functools
 import json
 from time import sleep, time
+
+# Ensure print always flushes to stdout
+print = functools.partial(print, flush=True)
 
 
 def main(args):
