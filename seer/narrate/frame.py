@@ -87,6 +87,8 @@ def narrate(tile, start, end):
 
     if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})
+    else:
+        verbose(f"[{novelty}] {text}", extra={"image": tile})
 
     debug(narration)
 

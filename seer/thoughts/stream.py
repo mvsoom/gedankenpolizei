@@ -1,3 +1,4 @@
+import argparse
 import functools
 import json
 import sys
@@ -5,12 +6,15 @@ import threading
 from collections import deque
 from copy import copy
 from queue import LifoQueue
+from sys import exit
 from time import time
 
 import anthropic
 
 from seer import env
-from seer.thoughts import USER_PROMPTFILE
+from seer.log import warning
+from seer.narrate.cost import APICosts
+from seer.thoughts import MODEL_NAME, USER_PROMPTFILE
 from seer.util import read_prompt_file, replace_variables_in_prompt
 
 # Ensure print always flushes to stdout
@@ -21,6 +25,8 @@ CLIENT = anthropic.Anthropic(api_key=env.ANTHROPIC_API_KEY)
 TEMPERATURE = 1.0
 
 USER_PROMPT = read_prompt_file(USER_PROMPTFILE)
+
+APICOSTS = APICosts(MODEL_NAME)
 
 
 def user_text(data):
@@ -39,23 +45,23 @@ def convert_ansi_codes(text):
     return text.replace("[", "\033[")
 
 
-def stream(q):
+def stream(q, args):
     PREFILL = "Here is the video narration as a stream of consciousness between <soc>...</soc> tags:\n\n<soc>"
 
     thoughts = copy(PREFILL)
-
-    natural_end = 0
+    reboot = 0
 
     while True:
         data = q.get(block=True)  # Get the most recent item from the LIFO queue
 
         if not q.empty():
-            print("LIFO queue held multiple items!")
+            pass
+            # print("LIFO queue saturated")
 
         # print("GOT", user_text(data))
 
         with CLIENT.messages.stream(
-            model="claude-3-opus-20240229",
+            model=MODEL_NAME,
             max_tokens=1000,
             temperature=TEMPERATURE,
             stop_sequences=["</soc>"],
@@ -79,33 +85,39 @@ def stream(q):
             for chunk in stream.text_stream:
                 thoughts += chunk
 
-                natural_end = 0
-
                 if q.empty():
                     print("\033[94m" + chunk + "\033[0m", end="", flush=True)
                 else:
                     # If we get a new update, break the loop
-                    print(chunk, end="|", flush=True)
+                    if args.annotate:
+                        print(chunk, end="|", flush=True)
+                    else:
+                        print("\033[94m" + chunk + "\033[0m", end="", flush=True)
                     break
-        del stream
+
+        # Anthropic supports stream cancellation to save tokens
+        stream.close()
+
+        APICOSTS.ingest(stream.current_message_snapshot)
+        APICOSTS.log_current_costs(warning)
 
         if q.empty():
             # Ended thought naturally
-            print("*", end="", flush=True)
+            if args.annotate:
+                print("*", end="", flush=True)
 
-            natural_end += 1
-            if natural_end > 3:
-                # Reset thoughts
-                print("/", end="", flush=True)
-                thoughts = copy(PREFILL)
+            reboot += 1
+
+            if reboot % 3 == 0:
+                if args.annotate:
+                    print("°", end="", flush=True)
+                thoughts += "</soc>\n\n<soc>"
 
 
-def main():
-    print("START")
-
+def main(args):
     q = LifoQueue(maxsize=2)  # 2 to detect if queue overloads
 
-    streaming_thread = threading.Thread(target=stream, args=(q,))
+    streaming_thread = threading.Thread(target=stream, args=(q, args))
 
     streaming_thread.daemon = True
     streaming_thread.start()
@@ -122,8 +134,12 @@ def main():
         # print("\nPUT:", data["text"])
         q.put(narration)
 
-    print("DONE")
-
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--annotate", action="store_true", help="Annotate output for debugging"
+    )
+    args = parser.parse_args()
+
+    exit(main(args))

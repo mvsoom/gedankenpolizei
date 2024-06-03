@@ -38,20 +38,11 @@ with client.messages.stream(
         },
     ],
 ) as stream:
+    i = 0
     for text in stream.text_stream:
-        # Check if the token contains a period
-        if "." in text:
-            # Close the SSE connection
-            print("GOTTEN! " + text, end="", flush=True)
-            # stream.close() # raises exception
-            break  # can just break!!
-        else:
-            process_stream(text)
+        i += 1
 
-# stream.close()
-print(stream)
-# print(stream.get_final_message()) # raises exception
-
-del stream
-
-print(">>> Done!")
+        process_stream(text)
+        if i > 3:
+            print("BREAK")
+            break

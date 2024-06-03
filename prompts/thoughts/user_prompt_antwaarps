@@ -1,5 +1,6 @@
-# Starting point
 Turn the following narration of a video into a stream of consciousness between <soc>...</soc> tags.
+
+Important! You have to respond in Dutch (Antwerp accent)!
 
 <video_narration>
 {{NARRATION}}
