@@ -1,0 +1,14 @@
+This directory contains scripts that control the `seer` modules.
+
+NOTE: for `narrate_screen.sh` and `narrate_video.sh` it is necessary to install `v4l2loopback`. Here are installation instructions:
+```bash
+# 1. Install v4l2loopback
+$ sudo apt install v4l2loopback-dkms
+# 2. IMPORTANT: pick "aaaaaaaa" as password
+# 3. Reboot and type "qqqqqqqq" (qwerty/azerty mismatch)
+# 4. Installation is now done. To activate:
+$ sudo modprobe v4l2loopback
+```
+Sources:
+- https://askubuntu.com/questions/881305/is-there-any-way-ffmpeg-send-video-to-dev-video0-on-ubuntu
+- https://askubuntu.com/questions/1231329/failed-to-open-dev-video0-no-such-file-or-directory/1232042#1232042
