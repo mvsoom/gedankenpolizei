@@ -4,6 +4,7 @@ from xml.etree import ElementTree
 from anthropic import Anthropic
 
 import seer.env as env
+from seer.cost import APICosts
 from seer.image.frame import encode_image
 from seer.log import debug, info, verbose
 from seer.narrate import (
@@ -17,7 +18,6 @@ from seer.narrate import (
     RESPONSE_TIMEOUT,
     SYSTEM_PROMPTFILE,
 )
-from seer.narrate.cost import APICosts
 from seer.util import mask_base64_messages, read_prompt_file
 
 CLIENT = Anthropic(api_key=env.ANTHROPIC_API_KEY)
