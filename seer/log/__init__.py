@@ -1,5 +1,6 @@
 
 import logging
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -21,11 +22,24 @@ def setup_verbose():
     logging.Logger.verbose = verbose
 
 
+def get_log_file_path(module_path, log_dir):
+    """Return a log file path for each invoked module in a mirrored directory structure"""
+    module_path = os.path.abspath(module_path)
+    log_dir = os.path.abspath(log_dir)
+
+    common_path = os.path.commonpath([module_path, log_dir])  # Not available in pathlib
+    relative_module_path = os.path.relpath(module_path, common_path)
+    new_path = os.path.join(log_dir, relative_module_path)
+    new_path = os.path.splitext(new_path)[0] + ".logmd"
+
+    return Path(new_path)
+
+
 def setup_logger():
     logger = logging.getLogger(Path(sys.argv[0]).stem)
     logger.setLevel(env.LOG_LEVEL)
 
-    log_file_path = Path(env.LOG_DIR) / env.LOG_FILE
+    log_file_path = get_log_file_path(sys.argv[0], env.LOG_DIR)
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     h = logging.FileHandler(log_file_path, mode="a")

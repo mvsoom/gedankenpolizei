@@ -5,7 +5,6 @@
 # Logging and debug
 #
 LOG_DIR=./logs
-LOG_FILE=app.log
 LOG_LEVEL=DEBUG
 LOG_IMAGES=True
 
@@ -31,5 +30,5 @@ NARRATE_MEMORY_NOVELTY_THRESHOLD=20  # If 0, retain all frames in memory
 #
 # Settings for `seer.thoughts`
 #
-THOUGHTS_USER_PROMPTFILE=prompts/thoughts/user_prompt
+THOUGHTS_USER_PROMPTFILE=prompts/thoughts/user_prompt_fixed_width
 THOUGHTS_MODEL_NAME=claude-3-opus-20240229
