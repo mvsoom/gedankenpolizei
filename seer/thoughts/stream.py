@@ -14,7 +14,7 @@ import anthropic
 from seer import env
 from seer.cost import APICosts
 from seer.log import error, info, warning
-from seer.thoughts import MODEL_NAME, USER_PROMPTFILE
+from seer.thoughts import MODEL_NAME, MODEL_TEMPERATURE, TERMINAL_WIDTH, USER_PROMPTFILE
 from seer.util import read_prompt_file, replace_variables_in_prompt
 
 # Ensure print always flushes to stdout
@@ -22,13 +22,9 @@ print = functools.partial(print, flush=True)
 
 CLIENT = anthropic.Anthropic(api_key=env.ANTHROPIC_API_KEY)
 
-TEMPERATURE = 1.0
-
 USER_PROMPT = read_prompt_file(USER_PROMPTFILE)
 
 APICOSTS = APICosts(MODEL_NAME)
-
-TERMINAL_WIDTH = 16
 
 
 def user_text(data):
@@ -38,17 +34,15 @@ def user_text(data):
         dt = time() - event["t"]
         narration += f"({dt:.1f}s ago) {text}\n"
 
-    user_text = replace_variables_in_prompt(USER_PROMPT, {"NARRATION": narration})
+    user_text = replace_variables_in_prompt(
+        USER_PROMPT, {"NARRATION": narration, "TERMINAL_WIDTH": TERMINAL_WIDTH}
+    )
 
     return user_text
 
 
-def convert_ansi_codes(text):
-    return text.replace("[", "\033[")
-
-
 def stream(q, args):
-    PREFILL = f'Here is the video narration as a stream of consciousness between <soc>...</soc> tags:\n\n<soc terminal_width="{TERMINAL_WIDTH}">\n'
+    PREFILL = f"Here is the video narration as a stream of consciousness between <soc>...</soc> tags:\n\n<soc terminal_width={TERMINAL_WIDTH}>\n"
 
     thoughts = copy(PREFILL)
     reboot = 0
@@ -79,7 +73,7 @@ def stream(q, args):
             with CLIENT.messages.stream(
                 model=MODEL_NAME,
                 max_tokens=1000,
-                temperature=TEMPERATURE,
+                temperature=MODEL_TEMPERATURE,
                 stop_sequences=["</soc>"],
                 # system="Use ANSI codes to color your responses.",
                 messages=[
@@ -131,7 +125,7 @@ def stream(q, args):
             if reboot % 3 == 0:
                 if args.annotate:
                     print("°", end="", flush=True)
-                thoughts += f'\n</soc>\n\n<soc terminal_width="{TERMINAL_WIDTH}">\n'
+                thoughts += f"\n</soc>\n\n<soc terminal_width={TERMINAL_WIDTH}>\n"
 
 
 def main(args):

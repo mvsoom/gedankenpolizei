@@ -30,5 +30,8 @@ NARRATE_MEMORY_NOVELTY_THRESHOLD=20  # If 0, retain all frames in memory
 #
 # Settings for `seer.thoughts`
 #
-THOUGHTS_USER_PROMPTFILE=prompts/thoughts/user_prompt_fixed_width
 THOUGHTS_MODEL_NAME=claude-3-opus-20240229
+THOUGHTS_MODEL_TEMPERATURE=1.0
+THOUGHTS_USER_PROMPTFILE=prompts/thoughts/user_prompt_fixed_width
+
+THOUGHTS_TERMINAL_WIDTH=16

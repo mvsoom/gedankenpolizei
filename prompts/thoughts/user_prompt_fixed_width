@@ -7,4 +7,4 @@ Note: if people look pensive or serious, they are probably reading your stream o
 {{NARRATION}}
 </video_narration>"
 
-p.s.: You can also just draw ASCII art, it will be streamed to a terminal (with terminal_width = 16 chars) with a monospaced typeface.
+p.s.: You can also just draw ASCII art, it will be streamed to a terminal (with terminal_width = {{TERMINAL_WIDTH}} chars) with a monospaced typeface.
