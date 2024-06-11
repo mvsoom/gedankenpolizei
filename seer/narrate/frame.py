@@ -1,5 +1,5 @@
-import warnings
-from xml.etree import ElementTree
+
+import re
 
 from anthropic import Anthropic
 
@@ -26,19 +26,27 @@ SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPTFILE)
 MESSAGES = []
 APICOSTS = APICosts(MODEL_NAME)
 
-def extract_narration_and_novelty(response):
-    # FIXME
-    try:
-        root = ElementTree.fromstring(response)
-        narration = next(root.iter("narration"))
-        text = narration.text if narration.text else ""
-        novelty = narration.get("novelty") if "novelty" in narration.attrib else None
-        return text, int(novelty)
-    except (ElementTree.ParseError, StopIteration):
-        pass
 
-    warnings.warn(f"Invalid narration string: {response}")
-    return "", None
+RESPONSE_PATTERN = r"<narration novelty=(\d{1,3})>(.*?)</narration>"
+
+
+def parse_response(response, parser=re.compile(RESPONSE_PATTERN)):
+    """Parse the response from the API
+
+    An example `response`is:
+    ```
+    <narration novelty=40>He said "Hi!" & went away.</narration>
+    ```
+    Note that this is not true XML, as the `novely` attribute is not quoted and the text content is not escaped. This is in line with the Anthropic Cookbook exampe (multimodal/reading_charts_graphs_powerpoints.ipynb) and indeed Claude does not escape the text content itself. So we use simple RegEx to parse the response.
+    """
+    match = parser.match(response)
+    if match:
+        novelty = int(match.group(1))
+        narration = match.group(2)
+        d = {"novelty": novelty, "narration": narration}
+        return d
+    else:
+        return None, None
 
 
 def narrate(tile, start, end):
@@ -46,7 +54,7 @@ def narrate(tile, start, end):
 
     # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
 
-    prefill = '<narration novelty="'
+    prefill = "<narration novelty="
     encoded_jpeg = encode_image(tile, max_size=IMAGE_MAX_SIZE)
 
     MESSAGES = MESSAGES + [
@@ -83,7 +91,9 @@ def narrate(tile, start, end):
 
     narration = prefill + response.content[0].text + "</narration>"
 
-    text, novelty = extract_narration_and_novelty(narration)
+    data = parse_response(narration)
+    novelty = data["novelty"]
+    text = data["narration"]
 
     if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})

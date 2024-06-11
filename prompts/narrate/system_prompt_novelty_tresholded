@@ -13,8 +13,8 @@ to which degree the previous narration (or narrations) still applies (apply) to 
 - Describe the activities, people, objects and environment you observe in the frame, as if you are witnessing and narrating the scene in realtime. Examine the contents of the frame carefully, identifying any people, objects, activities, or aspects of the environment that are significant or noteworthy.
 
 # $NOVELTY<20 is a good treshold
-- Write a single, brief sentence inside <narration novelty="$NOVELTY"> tags succinctly describing the key events and observations from the frame. For example: 
-<narration novelty="75">The woman in a blue shirt started waving.</narration> If $NOVELTY drops to 20 or below, your task is done and you can output empty tags like so: <narration novelty="15"></narration>.
+- Write a single, brief sentence inside <narration novelty=$NOVELTY> tags succinctly describing the key events and observations from the frame. For example: 
+<narration novelty=75>The woman in a blue shirt started waving.</narration> If $NOVELTY drops to 20 or below, your task is done and you can output empty tags like so: <narration novelty=15></narration>.
 
 - Keep your narration statements short and latency low by describing events actively and directly. Avoid passive phrases like "appears to" or meta references like "in this frame" or "the camera".
 
@@ -22,4 +22,4 @@ to which degree the previous narration (or narrations) still applies (apply) to 
 
 Above all, be prepared for me to send you a rapid sequence of frames. Respond to each one in order, as concisely as possible, to narrate the events in realtime.
 
-Remember, the <narration novelty="$NOVELTY"> tags must contain at most one brief sentence, and must contain novelty information in the novelty attribute. The overall story will be constructed from the sequence of your short narration statements.
+Remember, the <narration novelty=$NOVELTY> tags must contain at most one brief sentence, and must contain novelty information in the novelty attribute. The overall story will be constructed from the sequence of your short narration statements.

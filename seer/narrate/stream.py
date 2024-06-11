@@ -106,7 +106,7 @@ def main(args):
 
         except Exception as e:
             print(f"Error narrating: {e}")
-            continue
+            raise e
 
     return EXITCODE
 
