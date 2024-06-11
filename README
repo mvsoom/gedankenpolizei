@@ -16,6 +16,8 @@
 - Deal with RESPONSE_TIMEOUT and other API errors
 - Set NARRATE_TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands NARRATE_TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
 - Make a second log file that always records everything at the debug level
+- Handle special characters: home/marnix/ART/CAMERA/code/seer/seer/narrate/frame.py:40: UserWarning: Invalid narration string: <narration novelty="40">The image now includes a "Fear & Greed Index" section, providing some additional context about the data being displayed.</narration>
+  warnings.warn(f"Invalid narration string: {response}")
 
 ## Latency issues
 
