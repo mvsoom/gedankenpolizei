@@ -6,7 +6,7 @@ from anthropic import Anthropic
 import seer.env as env
 from seer.cost import APICosts
 from seer.image.frame import encode_image
-from seer.log import debug, info, verbose
+from seer.log import debug, error, info, verbose
 from seer.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
@@ -42,11 +42,11 @@ def parse_response(response, parser=re.compile(RESPONSE_PATTERN)):
     match = parser.match(response)
     if match:
         novelty = int(match.group(1))
-        narration = match.group(2)
+        narration = match.group(2).strip()
         d = {"novelty": novelty, "narration": narration}
         return d
     else:
-        return None, None
+        return None
 
 
 def narrate(tile, start, end):
@@ -94,6 +94,10 @@ def narrate(tile, start, end):
     data = parse_response(narration)
     novelty = data["novelty"]
     text = data["narration"]
+
+    # Sometimes happens
+    if (novelty > NOVELTY_THRESHOLD) and (not text):
+        error("Empty text despite sufficient novelty")
 
     if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})
