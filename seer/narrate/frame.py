@@ -1,5 +1,6 @@
 
 import re
+from pprint import pformat
 
 from anthropic import Anthropic
 
@@ -10,6 +11,7 @@ from seer.log import debug, info, verbose
 from seer.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
+    MEMORY_MAX_IMAGES,
     MEMORY_NOVELTY_THRESHOLD,
     MEMORY_SIZE,
     MODEL_NAME,
@@ -17,11 +19,19 @@ from seer.narrate import (
     NOVELTY_THRESHOLD,
     RESPONSE_TIMEOUT,
     SYSTEM_PROMPTFILE,
+    TILE_NUM_FRAMES,
 )
-from seer.util import mask_base64_messages, read_prompt_file
+from seer.util import (
+    mask_base64_messages,
+    read_prompt_file,
+    replace_variables_in_prompt,
+)
 
 CLIENT = Anthropic(api_key=env.ANTHROPIC_API_KEY)
 SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPTFILE)
+SYSTEM_PROMPT = replace_variables_in_prompt(
+    SYSTEM_PROMPT, {"TILE_NUM_FRAMES": TILE_NUM_FRAMES}
+)
 
 MESSAGES = []
 APICOSTS = APICosts(MODEL_NAME)
@@ -74,7 +84,9 @@ def narrate(tile, start, end):
         {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
     ]
 
-    debug(f"Sending {len(MESSAGES)} messages: {mask_base64_messages(MESSAGES)}")
+    debug(
+        f"Sending {len(MESSAGES)} messages:\n{pformat(mask_base64_messages(MESSAGES), width=40)}"
+    )
 
     response = CLIENT.messages.create(
         model=MODEL_NAME,
@@ -98,9 +110,7 @@ def narrate(tile, start, end):
     if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})
     else:
-        verbose(f"[{novelty}] {text}", extra={"image": tile})
-
-    debug(narration)
+        info(f"[{novelty}] {text}", extra={"image": tile})
 
     # Insert the answer into the messages
     last = MESSAGES[-1]
@@ -111,9 +121,18 @@ def narrate(tile, start, end):
     if not (novelty > MEMORY_NOVELTY_THRESHOLD):
         MESSAGES = MESSAGES[:-2]
 
+    # Limit the number of messages in memory
     max_messages = 2 * MEMORY_SIZE
+    MESSAGES = MESSAGES[-max_messages:] if max_messages else []
 
-    if len(MESSAGES) > max_messages:  # FIXME: fails for memoriy size = 0
-        MESSAGES = MESSAGES[-max_messages:]
+    # Limit the number of images in memory
+    running_count = MEMORY_MAX_IMAGES
+    for message in reversed(MESSAGES):
+        if message["role"] == "user":
+            running_count -= 1
+            if running_count < 0:
+                message["content"] = [
+                    {"type": "text", "text": "<image>"}
+                ]  # FIXME: add time stamp like "3 seconds ago"
 
     return text if novelty > NOVELTY_THRESHOLD else ""
