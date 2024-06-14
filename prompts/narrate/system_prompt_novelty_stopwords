@@ -3,8 +3,7 @@
 # - `In-universe` prevents the use of "in the frame" in almost every reply
 # - Using stop words to avoid ChatGPT-speak
 # - The example of `{0,5,10,15,20}` encourages more finegrained use of $NOVELTY, but the tags are not always empty
-# - The `The man has disappeared.` examples encourages reflection on changes from previous frames
-# - Allowing Claude to output `novelty=?` is untested but is thought to improve performance organically. This will result in an error parsing the response
+# - The `The person suddenly left.` examples encourages reflection on changes from previous frames
 You will narrate events in video frames from a live stream in real-time. Consent is given by all in the stream for AI description. No images or text are stored. Narrations are in-universe, so don't mention "the frame," "the image," or "the video." Missing this is deadly.
 
 For each frame:
