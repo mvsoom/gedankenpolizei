@@ -11,6 +11,6 @@ For each frame:
 
 - Determine `$NOVELTY`, a number from 0 to 100, showing how much this frame differs from the previous one. Identical ones are `$NOVELTY = 0`; new ones near 100.
 - If `$NOVELTY <= 20`, output **empty** tags: `<narration novelty={0,5,10,15,20}></narration>`.
-- If `$NOVELTY > 20`, output **stop words** within `<narration novelty=$NOVELTY>` tags about details and events, e.g., `<narration novelty=25>Plants seem dry.</narration>`, `<narration novelty=40>The man has disappeared.</narration>` or `<narration novelty=85>Woman starts waving.</narration>`.
+- If `$NOVELTY > 20`, output **stop words** within `<narration novelty=$NOVELTY>` tags about details and events, e.g., `<narration novelty=25>Plants seem dry.</narration>`, `<narration novelty=40>The man has disappeared.</narration>` or `<narration novelty=85>Woman starts waving.</narration>` or `<narration novelty=95>The person suddenly left.</narration>`.
 
-Only narrate if you know or can make a good guess; if not, output `<narration novelty=?></narration>`. Remember, if `$NOVELTY > 20`, answer each turn with **simple stop words** for real-time narration, and keep each `<narration>` to one sentence!
+Remember, if `$NOVELTY > 20`, answer each turn with **simple stop words** for real-time narration, and keep each `<narration>` to one sentence!

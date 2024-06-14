@@ -11,7 +11,7 @@ import cv2
 
 from seer.image.frame import format_time, raw_to_image, sample_frames, timestamp
 from seer.image.tile import concatenate_images_grid
-from seer.log import debug
+from seer.log import debug, error
 from seer.narrate import TILE_NUM_FRAMES, TILE_SIZE
 from seer.narrate.frame import narrate
 
@@ -31,7 +31,10 @@ def stream(name, monitor):
     cap = cv2.VideoCapture(name)
     if not cap.isOpened():
         raise RuntimeError(f"Error opening video stream: {name}")
+
     fps = cap.get(cv2.CAP_PROP_FPS)
+    w, h = cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    debug(f"Opened video stream: {name} at {fps} fps with resolution {w}x{h}")
 
     try:
         while cap.isOpened():
@@ -105,7 +108,7 @@ def main(args):
                     print(json.dumps(output), flush=True)
 
         except Exception as e:
-            print(f"Error narrating: {e}")
+            error(f"Error narrating: {e}")
             raise e
 
     return EXITCODE
