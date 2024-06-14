@@ -88,6 +88,8 @@ def narrate(tile, start, end):
         f"Sending {len(MESSAGES)} messages:\n{pformat(mask_base64_messages(MESSAGES), width=40)}"
     )
 
+    verbose(f"Sending {len(MESSAGES)} messages")
+
     response = CLIENT.messages.create(
         model=MODEL_NAME,
         max_tokens=MAX_TOKENS,
@@ -114,7 +116,7 @@ def narrate(tile, start, end):
     if novelty > NOVELTY_THRESHOLD:
         info(f"[{novelty}] {text}", extra={"image": tile})
     else:
-        info(f"[{novelty}] {text}", extra={"image": tile})
+        verbose(f"[{novelty}] {text}", extra={"image": tile})
 
     # Insert the answer into the messages
     last = MESSAGES[-1]

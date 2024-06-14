@@ -12,7 +12,9 @@ LOG_IMAGES=True
 # Settings for `seer.narrate`
 #
 NARRATE_TILE_NUM_FRAMES=1
+#NARRATE_TILE_SIZE=(160, 120)  # Very fast with some hallucinations
 NARRATE_TILE_SIZE=(320, 240)
+#NARRATE_TILE_SIZE=(340, 255)
 #NARRATE_TILE_SIZE=(640, 480)
 #NARRATE_TILE_SIZE=(512,384) # Optimal for tiling 640x480 images
 #NARRATE_TILE_SIZE=(1024,768) # Optimal for tiling 640x480 images
@@ -28,7 +30,7 @@ NARRATE_SYSTEM_PROMPTFILE=prompts/narrate/system_prompt_novelty_stopwords
 NARRATE_NOVELTY_THRESHOLD=20  # Ignore narrations with novelty below this threshold
 
 NARRATE_MEMORY_SIZE=3  # Number of frames to keep in memory (excludes current frame)
-NARRATE_MEMORY_MAX_IMAGES=3  # Maximum number of images to keep in memory (becomes only descriptions otherwise)
+NARRATE_MEMORY_MAX_IMAGES=1000  # Maximum number of images to keep in memory (becomes only descriptions otherwise)
 NARRATE_MEMORY_NOVELTY_THRESHOLD=20  # If negative, retain all frames in memory regardless of novelty
 
 #
