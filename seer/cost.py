@@ -11,7 +11,7 @@ PRICING = {
 class APICosts:
     def __init__(self, model_name):
         self.start = time()
-        self.model = model_name.split("-")[2].lower()
+        self.model = [k for k in PRICING.keys() if k in model_name.lower()][0]
 
         # Convert prices from $/MTok to $/tok
         self.in_price = PRICING[self.model]["input"] / 1e6
