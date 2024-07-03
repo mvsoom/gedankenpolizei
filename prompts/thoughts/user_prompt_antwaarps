@@ -6,6 +6,6 @@ Note: if people look pensive or serious, they are probably reading your stream o
 
 <video_narration>
 {{NARRATION}}
-</video_narration>"
+</video_narration>
 
 p.s.: You can also just draw ASCII art, it will be streamed to a terminal (with terminal_width = 16 chars) with a monospaced typeface.
