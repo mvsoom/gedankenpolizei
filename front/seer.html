@@ -18,6 +18,7 @@
 
     <video id="video" autoplay playsinline style="display:none"></video>
 
+    <!-- Vertex Shader -->
     <script id="vs" type="x-shader/x-vertex">
         uniform sampler2D map;
         uniform float width;
@@ -43,6 +44,7 @@
         }
     </script>
 
+    <!-- Fragment Shader -->
     <script id="fs" type="x-shader/x-fragment">
         uniform sampler2D map;
         varying vec2 vUv;
@@ -68,14 +70,14 @@
         let scene, camera, renderer;
         let geometry, mesh, material;
         let mouse, center;
-        let touchStartDistance = 0;
+        let textMesh;
 
         const initialCameraPosition = new THREE.Vector3(0, 0, 1500);
         let targetCameraPosition = initialCameraPosition.clone();
 
         init();
 
-        function init() {
+        async function init() {
             const container = document.createElement('div');
             document.body.appendChild(container);
 
@@ -87,12 +89,8 @@
             center.z = -1000;
 
             const video = document.getElementById('video');
-            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                video.srcObject = stream;
-                video.play();
-            }).catch(error => {
-                console.error('Unable to access the camera/webcam.', error);
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
 
             const texture = new THREE.VideoTexture(video);
             texture.minFilter = THREE.NearestFilter;
@@ -134,27 +132,6 @@
             canvas.height = height;
             const context = canvas.getContext('2d');
 
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            context.font = 'bold 20px Arial';
-            context.textAlign = 'center';
-            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            const text = `A man peers at 
-me, piercing my
-inner thoughts.
-What does he 
-see reflected
-in my eyes?
-Whirling images,
-contemplations,
-flitting across
-my mind's eye.
-He reads it all.`;
-            const lines = text.split('\n');
-            const lineHeight = 24; // adjust to your font size
-            for (let i = 0; i < lines.length; i++) {
-                context.fillText(lines[i], canvas.width / 2, 50 + i * lineHeight);
-            }
-
             const textTexture = new THREE.CanvasTexture(canvas);
             textTexture.needsUpdate = true;
 
@@ -163,7 +140,7 @@ He reads it all.`;
                 transparent: true,
             });
             const textGeometry = new THREE.PlaneGeometry(width, height);
-            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh = new THREE.Mesh(textGeometry, textMaterial);
             textMesh.position.set(0, 0, 100); // Position in front of the point cloud screen
             scene.add(textMesh);
 
@@ -188,6 +165,21 @@ He reads it all.`;
             document.addEventListener('wheel', onDocumentMouseWheel);
             document.addEventListener('touchstart', onDocumentTouchStart, false);
             document.addEventListener('touchmove', onDocumentTouchMove, false);
+
+            // Establish WebSocket connection
+            const socket = new WebSocket('ws://localhost:8765');
+            socket.binaryType = 'arraybuffer';
+
+            socket.onopen = () => {
+                console.log('WebSocket connection opened');
+                setInterval(() => sendFrame(socket, video), 250); // Send frames at 4 fps
+            };
+
+            socket.onmessage = (event) => {
+                const text = event.data;
+                updateTextCanvas(canvas, context, text);
+                textTexture.needsUpdate = true;
+            };
         }
 
         function onWindowResize() {
@@ -237,6 +229,34 @@ He reads it all.`;
             const dx = touches[0].clientX - touches[1].clientX;
             const dy = touches[0].clientY - touches[1].clientY;
             return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function sendFrame(socket, video) {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64data = reader.result.split(',')[1];
+                    socket.send(base64data);
+                };
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function updateTextCanvas(canvas, context, text) {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.font = 'bold 20px Arial';
+            context.textAlign = 'center';
+            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            const lines = text.split('\n');
+            const lineHeight = 24; // adjust to your font size
+            for (let i = 0; i < lines.length; i++) {
+                context.fillText(lines[i], canvas.width / 2, 50 + i * lineHeight);
+            }
         }
 
         function animate() {
