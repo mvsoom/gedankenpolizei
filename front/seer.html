@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js - kinect</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="video" autoplay playsinline style="display:none"></video>
+
+    <script id="vs" type="x-shader/x-vertex">
+        uniform sampler2D map;
+        uniform float width;
+        uniform float height;
+        uniform float nearClipping, farClipping;
+        uniform float pointSize;
+        uniform float zOffset;
+        varying vec2 vUv;
+        const float XtoZ = 1.11146; // tan( 1.0144686 / 2.0 ) * 2.0;
+        const float YtoZ = 0.83359; // tan( 0.7898090 / 2.0 ) * 2.0;
+        void main() {
+            vUv = vec2(position.x / width, position.y / height);
+            vec4 color = texture2D(map, vUv);
+            float depth = (color.r + color.g + color.b) / 3.0;
+            float z = (1.0 - depth) * (farClipping - nearClipping) + nearClipping;
+            vec4 pos = vec4(
+                (position.x / width - 0.5) * z * XtoZ,
+                (position.y / height - 0.5) * z * YtoZ,
+                -z + zOffset,
+                1.0);
+            gl_PointSize = pointSize;
+            gl_Position = projectionMatrix * modelViewMatrix * pos;
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        uniform sampler2D map;
+        varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(map, vUv);
+            gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
+        }
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+        let scene, camera, renderer;
+        let geometry, mesh, material;
+        let mouse, center;
+        let touchStartDistance = 0;
+
+        const initialCameraPosition = new THREE.Vector3(0, 0, 1500);
+        let targetCameraPosition = initialCameraPosition.clone();
+
+        init();
+
+        function init() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.copy(initialCameraPosition);
+
+            scene = new THREE.Scene();
+            center = new THREE.Vector3();
+            center.z = -1000;
+
+            const video = document.getElementById('video');
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                video.srcObject = stream;
+                video.play();
+            }).catch(error => {
+                console.error('Unable to access the camera/webcam.', error);
+            });
+
+            const texture = new THREE.VideoTexture(video);
+            texture.minFilter = THREE.NearestFilter;
+
+            const width = 640, height = 480;
+            const nearClipping = 2012, farClipping = 4000;
+
+            geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array(width * height * 3);
+            for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j++) {
+                vertices[i] = j % width;
+                vertices[i + 1] = Math.floor(j / width);
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+            material = new THREE.ShaderMaterial({
+                uniforms: {
+                    'map': { value: texture },
+                    'width': { value: width },
+                    'height': { value: height },
+                    'nearClipping': { value: nearClipping },
+                    'farClipping': { value: farClipping },
+                    'pointSize': { value: 2 },
+                    'zOffset': { value: 706 } // Set zOffset to 706
+                },
+                vertexShader: document.getElementById('vs').textContent,
+                fragmentShader: document.getElementById('fs').textContent,
+                blending: THREE.AdditiveBlending,
+                depthTest: false, depthWrite: false,
+                transparent: true
+            });
+
+            mesh = new THREE.Points(geometry, material);
+            scene.add(mesh);
+
+            // Create the canvas texture with the text
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.font = 'bold 20px Arial';
+            context.textAlign = 'center';
+            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            const text = `A man peers at 
+me, piercing my
+inner thoughts.
+What does he 
+see reflected
+in my eyes?
+Whirling images,
+contemplations,
+flitting across
+my mind's eye.
+He reads it all.`;
+            const lines = text.split('\n');
+            const lineHeight = 24; // adjust to your font size
+            for (let i = 0; i < lines.length; i++) {
+                context.fillText(lines[i], canvas.width / 2, 50 + i * lineHeight);
+            }
+
+            const textTexture = new THREE.CanvasTexture(canvas);
+            textTexture.needsUpdate = true;
+
+            const textMaterial = new THREE.MeshBasicMaterial({
+                map: textTexture,
+                transparent: true,
+            });
+            const textGeometry = new THREE.PlaneGeometry(width, height);
+            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.set(0, 0, 100); // Position in front of the point cloud screen
+            scene.add(textMesh);
+
+            const gui = new GUI();
+            gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
+            gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
+            gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
+            gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setAnimationLoop(animate);
+            container.appendChild(renderer.domElement);
+
+            mouse = new THREE.Vector3(0, 0, 1);
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            document.addEventListener('mouseleave', onDocumentMouseLeave);
+            window.addEventListener('resize', onWindowResize);
+
+            // Add event listeners for zooming and panning
+            document.addEventListener('wheel', onDocumentMouseWheel);
+            document.addEventListener('touchstart', onDocumentTouchStart, false);
+            document.addEventListener('touchmove', onDocumentTouchMove, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDocumentMouseMove(event) {
+            mouse.x = (event.clientX - window.innerWidth / 2) * 8;
+            mouse.y = (event.clientY - window.innerHeight / 2) * 8;
+            targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+        }
+
+        function onDocumentMouseLeave(event) {
+            targetCameraPosition.copy(initialCameraPosition);
+        }
+
+        function onDocumentMouseWheel(event) {
+            camera.position.z += event.deltaY * 0.5; // Increase sensitivity
+        }
+
+        function onDocumentTouchStart(event) {
+            if (event.touches.length === 1) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            } else if (event.touches.length === 2) {
+                touchStartDistance = getTouchDistance(event.touches);
+            }
+        }
+
+        function onDocumentTouchMove(event) {
+            if (event.touches.length === 1) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            } else if (event.touches.length === 2) {
+                const currentDistance = getTouchDistance(event.touches);
+                const distanceDelta = currentDistance - touchStartDistance;
+                camera.position.z -= distanceDelta * 0.5; // Increase sensitivity
+                touchStartDistance = currentDistance;
+            }
+        }
+
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function animate() {
+            camera.position.lerp(targetCameraPosition, 0.05); // Smooth transition
+            camera.lookAt(center);
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
