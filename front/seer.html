@@ -75,6 +75,9 @@
         const initialCameraPosition = new THREE.Vector3(0, 0, 1500);
         let targetCameraPosition = initialCameraPosition.clone();
 
+        // Buffer to store text lines
+        const textBuffer = [];
+
         init();
 
         async function init() {
@@ -176,10 +179,18 @@
             };
 
             socket.onmessage = (event) => {
-                const text = event.data;
-                updateTextCanvas(canvas, context, text);
-                textTexture.needsUpdate = true;
+                const text = event.data.trim();
+                if (text) {
+                    if (textBuffer.length === 0 || textBuffer[textBuffer.length - 1].endsWith(' ')) {
+                        textBuffer.push(text);
+                    } else {
+                        textBuffer[textBuffer.length - 1] += ' ' + text;
+                    }
+                    updateTextCanvas(canvas, context, textBuffer);
+                    textTexture.needsUpdate = true;
+                }
             };
+
         }
 
         function onWindowResize() {
@@ -247,17 +258,39 @@
             });
         }
 
-        function updateTextCanvas(canvas, context, text) {
+        function updateTextCanvas(canvas, context, textBuffer) {
+            const maxWidth = canvas.width - 40; // Allow some padding
+            const lineHeight = 24; // Adjust to your font size
+            const offset = 50;
+            let currentY = offset;
+
             context.clearRect(0, 0, canvas.width, canvas.height);
             context.font = 'bold 20px Arial';
-            context.textAlign = 'center';
+            context.textAlign = 'left';
             context.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            const lines = text.split('\n');
-            const lineHeight = 24; // adjust to your font size
-            for (let i = 0; i < lines.length; i++) {
-                context.fillText(lines[i], canvas.width / 2, 50 + i * lineHeight);
-            }
+
+            textBuffer.forEach(line => {
+                let words = line.split(' ');
+                let currentLine = '';
+
+                words.forEach(word => {
+                    let testLine = currentLine + word + ' ';
+                    let testWidth = context.measureText(testLine).width;
+
+                    if (testWidth > maxWidth && currentLine !== '') {
+                        context.fillText(currentLine, 20, currentY); // Padding of 20px
+                        currentLine = word + ' ';
+                        currentY += lineHeight;
+                    } else {
+                        currentLine = testLine;
+                    }
+                });
+
+                context.fillText(currentLine, 20, currentY);
+                currentY += lineHeight;
+            });
         }
+
 
         function animate() {
             camera.position.lerp(targetCameraPosition, 0.05); // Smooth transition
