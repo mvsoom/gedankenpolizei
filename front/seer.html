@@ -190,7 +190,6 @@
                     textTexture.needsUpdate = true;
                 }
             };
-
         }
 
         function onWindowResize() {
@@ -262,15 +261,18 @@
             const maxWidth = canvas.width - 40; // Allow some padding
             const lineHeight = 24; // Adjust to your font size
             const offset = 50;
-            let currentY = offset;
+            const fadeHeight = 100; // Height over which the fade effect is applied
 
             context.clearRect(0, 0, canvas.width, canvas.height);
             context.font = 'bold 20px Arial';
             context.textAlign = 'left';
-            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
 
-            textBuffer.forEach(line => {
-                let words = line.split(' ');
+            let currentY = offset;
+            let visibleText = [];
+
+            // Calculate the visible lines and wrap text
+            for (let i = 0; i < textBuffer.length; i++) {
+                let words = textBuffer[i].split(' ');
                 let currentLine = '';
 
                 words.forEach(word => {
@@ -278,19 +280,33 @@
                     let testWidth = context.measureText(testLine).width;
 
                     if (testWidth > maxWidth && currentLine !== '') {
-                        context.fillText(currentLine, 20, currentY); // Padding of 20px
+                        visibleText.push(currentLine);
                         currentLine = word + ' ';
-                        currentY += lineHeight;
                     } else {
                         currentLine = testLine;
                     }
                 });
 
-                context.fillText(currentLine, 20, currentY);
+                visibleText.push(currentLine);
+            }
+
+            // Handle scrolling if necessary
+            while ((visibleText.length * lineHeight) > (canvas.height - offset)) {
+                visibleText.shift();
+            }
+
+            // Apply the fade-out effect at the top
+            visibleText.forEach((line, index) => {
+                let alpha = 1;
+                if (currentY < fadeHeight) {
+                    alpha = Math.max((currentY / fadeHeight), 0); // Fade out effect
+                }
+
+                context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                context.fillText(line, 20, currentY);
                 currentY += lineHeight;
             });
         }
-
 
         function animate() {
             camera.position.lerp(targetCameraPosition, 0.05); // Smooth transition
