@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>three.js - kinect</title>
+    <title>SEER</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
@@ -27,8 +27,8 @@
         uniform float pointSize;
         uniform float zOffset;
         varying vec2 vUv;
-        const float XtoZ = 1.11146; // tan( 1.0144686 / 2.0 ) * 2.0;
-        const float YtoZ = 0.83359; // tan( 0.7898090 / 2.0 ) * 2.0;
+        const float XtoZ = 1.11146;
+        const float YtoZ = 0.83359;
         void main() {
             vUv = vec2(position.x / width, position.y / height);
             vec4 color = texture2D(map, vUv);
@@ -64,18 +64,40 @@
     </script>
 
     <script type="module">
+        // Based on three.js examples
+
         import * as THREE from 'three';
         import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+        // DESIGN related constants
+        const TEXT_CANVAS_WIDTH = 320;
+        const TEXT_CANVAS_HEIGHT = 480;
+        const FONT_SIZE = 20;
+        const FONT_FAMILY = 'Arial';
+        const TEXT_COLOR = 'rgba(255, 255, 255, 0.7)';
+        const LINE_HEIGHT = 24;
+        const TEXT_OFFSET = 50;
+        const FADE_HEIGHT = 100;
+        const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
+        const DISPLAY_CONTROLS = false; // Toggle to display or hide controls
+
+        // Note: webcam stream is shown at native resolution
+
+        // Other constants
+        const NEAR_CLIPPING = 2012;
+        const FAR_CLIPPING = 4000;
+        const Z_OFFSET = 706;
+        const POINT_SIZE = 2;
+        const INITIAL_CAMERA_Z = 1500;
 
         let scene, camera, renderer;
         let geometry, mesh, material;
         let mouse, center;
         let textMesh;
 
-        const initialCameraPosition = new THREE.Vector3(0, 0, 1500);
+        const initialCameraPosition = new THREE.Vector3(0, 0, INITIAL_CAMERA_Z);
         let targetCameraPosition = initialCameraPosition.clone();
 
-        // Buffer to store text lines
         const textBuffer = [];
 
         init();
@@ -98,41 +120,38 @@
             const texture = new THREE.VideoTexture(video);
             texture.minFilter = THREE.NearestFilter;
 
-            const width = 640, height = 480;
-            const nearClipping = 2012, farClipping = 4000;
-
             geometry = new THREE.BufferGeometry();
-            const vertices = new Float32Array(width * height * 3);
+            const vertices = new Float32Array(TEXT_CANVAS_WIDTH * TEXT_CANVAS_HEIGHT * 3);
             for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j++) {
-                vertices[i] = j % width;
-                vertices[i + 1] = Math.floor(j / width);
+                vertices[i] = j % TEXT_CANVAS_WIDTH;
+                vertices[i + 1] = Math.floor(j / TEXT_CANVAS_WIDTH);
             }
             geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
             material = new THREE.ShaderMaterial({
                 uniforms: {
                     'map': { value: texture },
-                    'width': { value: width },
-                    'height': { value: height },
-                    'nearClipping': { value: nearClipping },
-                    'farClipping': { value: farClipping },
-                    'pointSize': { value: 2 },
-                    'zOffset': { value: 706 } // Set zOffset to 706
+                    'width': { value: TEXT_CANVAS_WIDTH },
+                    'height': { value: TEXT_CANVAS_HEIGHT },
+                    'nearClipping': { value: NEAR_CLIPPING },
+                    'farClipping': { value: FAR_CLIPPING },
+                    'pointSize': { value: POINT_SIZE },
+                    'zOffset': { value: Z_OFFSET }
                 },
                 vertexShader: document.getElementById('vs').textContent,
                 fragmentShader: document.getElementById('fs').textContent,
                 blending: THREE.AdditiveBlending,
-                depthTest: false, depthWrite: false,
+                depthTest: false,
+                depthWrite: false,
                 transparent: true
             });
 
             mesh = new THREE.Points(geometry, material);
             scene.add(mesh);
 
-            // Create the canvas texture with the text
             const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = TEXT_CANVAS_WIDTH;
+            canvas.height = TEXT_CANVAS_HEIGHT;
             const context = canvas.getContext('2d');
 
             const textTexture = new THREE.CanvasTexture(canvas);
@@ -142,16 +161,10 @@
                 map: textTexture,
                 transparent: true,
             });
-            const textGeometry = new THREE.PlaneGeometry(width, height);
+            const textGeometry = new THREE.PlaneGeometry(TEXT_CANVAS_WIDTH, TEXT_CANVAS_HEIGHT);
             textMesh = new THREE.Mesh(textGeometry, textMaterial);
-            textMesh.position.set(0, 0, 100); // Position in front of the point cloud screen
+            textMesh.position.set(0, 0, 100);
             scene.add(textMesh);
-
-            const gui = new GUI();
-            gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
-            gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
-            gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
-            gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
 
             renderer = new THREE.WebGLRenderer();
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -164,18 +177,24 @@
             document.addEventListener('mouseleave', onDocumentMouseLeave);
             window.addEventListener('resize', onWindowResize);
 
-            // Add event listeners for zooming and panning
             document.addEventListener('wheel', onDocumentMouseWheel);
             document.addEventListener('touchstart', onDocumentTouchStart, false);
             document.addEventListener('touchmove', onDocumentTouchMove, false);
 
-            // Establish WebSocket connection
+            if (DISPLAY_CONTROLS) {
+                const gui = new GUI();
+                gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
+                gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
+                gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
+                gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
+            }
+
             const socket = new WebSocket('ws://localhost:8765');
             socket.binaryType = 'arraybuffer';
 
             socket.onopen = () => {
                 console.log('WebSocket connection opened');
-                setInterval(() => sendFrame(socket, video), 250); // Send frames at 4 fps
+                setInterval(() => sendFrame(socket, video), 250);
             };
 
             socket.onmessage = (event) => {
@@ -209,7 +228,7 @@
         }
 
         function onDocumentMouseWheel(event) {
-            camera.position.z += event.deltaY * 0.5; // Increase sensitivity
+            camera.position.z += event.deltaY * 0.5;
         }
 
         function onDocumentTouchStart(event) {
@@ -230,7 +249,7 @@
             } else if (event.touches.length === 2) {
                 const currentDistance = getTouchDistance(event.touches);
                 const distanceDelta = currentDistance - touchStartDistance;
-                camera.position.z -= distanceDelta * 0.5; // Increase sensitivity
+                camera.position.z -= distanceDelta * 0.5;
                 touchStartDistance = currentDistance;
             }
         }
@@ -258,19 +277,13 @@
         }
 
         function updateTextCanvas(canvas, context, textBuffer) {
-            const maxWidth = canvas.width - 40; // Allow some padding
-            const lineHeight = 24; // Adjust to your font size
-            const offset = 50;
-            const fadeHeight = 100; // Height over which the fade effect is applied
-
             context.clearRect(0, 0, canvas.width, canvas.height);
-            context.font = 'bold 20px Arial';
+            context.font = `bold ${FONT_SIZE}px ${FONT_FAMILY}`;
             context.textAlign = 'left';
 
-            let currentY = offset;
+            let currentY = TEXT_OFFSET;
             let visibleText = [];
 
-            // Calculate the visible lines and wrap text
             for (let i = 0; i < textBuffer.length; i++) {
                 let words = textBuffer[i].split(' ');
                 let currentLine = '';
@@ -279,7 +292,7 @@
                     let testLine = currentLine + word + ' ';
                     let testWidth = context.measureText(testLine).width;
 
-                    if (testWidth > maxWidth && currentLine !== '') {
+                    if (testWidth > MAX_TEXT_WIDTH && currentLine !== '') {
                         visibleText.push(currentLine);
                         currentLine = word + ' ';
                     } else {
@@ -290,26 +303,24 @@
                 visibleText.push(currentLine);
             }
 
-            // Handle scrolling if necessary
-            while ((visibleText.length * lineHeight) > (canvas.height - offset)) {
+            while ((visibleText.length * LINE_HEIGHT) > (canvas.height - TEXT_OFFSET)) {
                 visibleText.shift();
             }
 
-            // Apply the fade-out effect at the top
             visibleText.forEach((line, index) => {
                 let alpha = 1;
-                if (currentY < fadeHeight) {
-                    alpha = Math.max((currentY / fadeHeight), 0); // Fade out effect
+                if (currentY < FADE_HEIGHT) {
+                    alpha = Math.max((currentY / FADE_HEIGHT), 0);
                 }
 
                 context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
                 context.fillText(line, 20, currentY);
-                currentY += lineHeight;
+                currentY += LINE_HEIGHT;
             });
         }
 
         function animate() {
-            camera.position.lerp(targetCameraPosition, 0.05); // Smooth transition
+            camera.position.lerp(targetCameraPosition, 0.05);
             camera.lookAt(center);
             renderer.render(scene, camera);
         }
