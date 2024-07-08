@@ -189,26 +189,60 @@
                 gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
             }
 
-            const socket = new WebSocket('ws://localhost:8765');
-            socket.binaryType = 'arraybuffer';
+            connectWebSocketVideo();
+            connectWebSocketText();
 
-            socket.onopen = () => {
-                console.log('WebSocket connection opened');
-                setInterval(() => sendFrame(socket, video), 250);
-            };
+            function connectWebSocketVideo() {
+                const socket = new WebSocket('ws://localhost:8765');
+                socket.binaryType = 'arraybuffer';
 
-            socket.onmessage = (event) => {
-                const text = event.data.trim();
-                if (text) {
-                    if (textBuffer.length === 0 || textBuffer[textBuffer.length - 1].endsWith(' ')) {
-                        textBuffer.push(text);
-                    } else {
-                        textBuffer[textBuffer.length - 1] += ' ' + text;
+                socket.onopen = () => {
+                    console.log('WebSocket connection for video opened');
+                    setInterval(() => sendFrame(socket, video), 250);
+                };
+
+                socket.onclose = () => {
+                    console.log('WebSocket connection for video closed, retrying...');
+                    setTimeout(connectWebSocketVideo, 1000);
+                };
+
+                socket.onerror = (error) => {
+                    console.log('WebSocket video error:', error);
+                    socket.close();
+                };
+            }
+
+            function connectWebSocketText() {
+                const socket = new WebSocket('ws://localhost:8766');
+
+                socket.onopen = () => {
+                    console.log('WebSocket connection for text opened');
+                };
+
+                socket.onmessage = (event) => {
+                    const text = event.data.trim();
+                    console.log('Received message:', text);
+                    if (text) {
+                        if (textBuffer.length === 0 || textBuffer[textBuffer.length - 1].endsWith(' ')) {
+                            textBuffer.push(text);
+                        } else {
+                            textBuffer[textBuffer.length - 1] += ' ' + text;
+                        }
+                        updateTextCanvas(canvas, context, textBuffer);
+                        textTexture.needsUpdate = true;
                     }
-                    updateTextCanvas(canvas, context, textBuffer);
-                    textTexture.needsUpdate = true;
-                }
-            };
+                };
+
+                socket.onclose = () => {
+                    console.log('WebSocket connection for text closed, retrying...');
+                    setTimeout(connectWebSocketText, 1000);
+                };
+
+                socket.onerror = (error) => {
+                    console.log('WebSocket text error:', error);
+                    socket.close();
+                };
+            }
         }
 
         function onWindowResize() {
@@ -266,14 +300,15 @@
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
             canvas.toBlob((blob) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const base64data = reader.result.split(',')[1];
-                    socket.send(base64data);
-                };
-                reader.readAsDataURL(blob);
-            });
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    blob.arrayBuffer().then(buffer => {
+                        socket.send(buffer);
+                    });
+                    console.log('Sent video frame');
+                }
+            }, 'image/jpeg');
         }
 
         function updateTextCanvas(canvas, context, textBuffer) {

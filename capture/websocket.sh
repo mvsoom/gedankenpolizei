@@ -1,0 +1,5 @@
+#/bin/bash
+# Output MJPEG stream from a websocket sending single JPEG images
+PORT=8765
+
+websocat -sbq $PORT

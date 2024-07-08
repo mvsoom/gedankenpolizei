@@ -9,6 +9,10 @@
   * For this the https://pypi.org/project/yaml-config-override/ package is good
   * see `yaml` branch
 - Maybe switch to ffmpegcv Python library if there is too much overhead in resizing/recasting images: it does this on ffmpeg side
+- Document dependenceis:
+  * Python3 version + requirements
+  * Helper programs:
+    - If using html client websocat (rust install websocat) -- also requires libssl-dev
 
 ### `seer.thoughts`
 

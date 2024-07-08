@@ -96,13 +96,15 @@ def stream(q, args):
                     thoughts += chunk
 
                     if q.empty():
-                        print("\033[94m" + chunk + "\033[0m", end="", flush=True)
+                        # print("\033[94m" + chunk + "\033[0m", end="", flush=True)
+                        print(chunk, end="", flush=True)
                     else:
                         # If we get a new update, break the loop
                         if args.annotate:
                             print(chunk, end="|", flush=True)
                         else:
-                            print("\033[94m" + chunk + "\033[0m", end="", flush=True)
+                            # print("\033[94m" + chunk + "\033[0m", end="", flush=True)
+                            print(chunk, end="", flush=True)
                         break
         # Except exceptions from anthropic
         except Exception as e:

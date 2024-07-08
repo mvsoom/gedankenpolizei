@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam to WebSocket</title>
+</head>
+<body>
+    <video id="video" autoplay></video>
+    <script type="module">
+        const video = document.getElementById('video');
+        let socket;
+        const socketUrl = 'ws://localhost:8765';
+
+        // Function to initialize WebSocket connection
+        function initWebSocket() {
+            socket = new WebSocket(socketUrl);
+
+            socket.onopen = () => {
+                console.log('WebSocket connection opened');
+            };
+
+            socket.onclose = () => {
+                console.log('WebSocket connection closed, retrying...');
+                setTimeout(initWebSocket, 1000); // Retry connection after 1 second
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                socket.close();
+            };
+        }
+
+        // Initialize WebSocket connection
+        initWebSocket();
+
+        // Access the user's webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                console.error('Error accessing webcam:', error);
+            });
+
+        async function sendFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        blob.arrayBuffer().then(buffer => {
+                            socket.send(buffer);
+                        });
+                        console.log('Sent');
+                    }
+                }, 'image/jpeg');
+            }
+        }
+
+        // Send frames at a regular interval (e.g., every 100ms)
+        setInterval(sendFrame, 100);
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+#!/bin/bash
+# Output MJPEG stream from a video file
+# Bonus: the piping strategy sidesteps difficult synchronization issues when directly opening the video file with OpenCV, keeping synchronization errors to about +/- 0.05 sec rather than a steady drift
+FILE=$1
+ffmpeg -re -loglevel panic -i "$FILE" -vcodec mjpeg -f mjpeg -
