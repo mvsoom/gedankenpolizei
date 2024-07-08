@@ -8,6 +8,7 @@
 - Using YAML for config (env) files and prompt files (with properties such as temperature, prefill, closure, etc.)
   * For this the https://pypi.org/project/yaml-config-override/ package is good
   * see `yaml` branch
+- Maybe switch to ffmpegcv Python library if there is too much overhead in resizing/recasting images: it does this on ffmpeg side
 
 ### `seer.thoughts`
 
