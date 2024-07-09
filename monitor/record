@@ -4,7 +4,6 @@
 import argparse
 import json
 import sys
-from sys import exit
 from time import sleep, time
 
 
@@ -43,8 +42,6 @@ def record_stream(file, dt, echo):
         writeout()
         rf.close()
 
-    return 0
-
 
 def replay_stream(file, scale):
     with open(file, "r") as f:
@@ -59,13 +56,14 @@ def replay_stream(file, scale):
             dt = lines[n + 1]["t"] - lines[n]["t"]
             sleep(dt * scale)
 
-    return 0
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("file", help="Path to .jsonl file to record to or replay from")
     parser.add_argument("--replay", action="store_true", help="Replay the recording")
+    parser.add_argument(
+        "--loop", action="store_true", help="If replaying, loop the recording"
+    )
     parser.add_argument(
         "--echo",
         action="store_true",
@@ -88,9 +86,11 @@ def main():
     args = parser.parse_args()
 
     if args.replay:
-        exit(replay_stream(args.file, args.scale))
+        replay_stream(args.file, args.scale)
+        if args.loop:
+            main()
     else:
-        exit(record_stream(args.file, args.dt, args.echo))
+        record_stream(args.file, args.dt, args.echo)
 
 
 if __name__ == "__main__":
