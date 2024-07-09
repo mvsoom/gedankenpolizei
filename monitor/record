@@ -1,0 +1,97 @@
+#!/usr/bin/python3
+"""Record to or replay a .jsonl file containing timestamped pipe data"""
+
+import argparse
+import json
+import sys
+from sys import exit
+from time import sleep, time
+
+
+def printbytes(buffer):
+    sys.stdout.buffer.write(buffer)
+    sys.stdout.buffer.flush()
+
+
+def record_stream(file, dt, echo):
+    dt /= 1000.0  # From seconds to msec
+    rf = open(file, "w")
+    buffer = bytearray()
+
+    def writeout():
+        if echo:
+            printbytes(buffer)
+
+        print(json.dumps({"t": time(), "data": buffer.hex()}), file=rf)
+        buffer.clear()
+
+    a = time()
+
+    try:
+        while True:
+            data = sys.stdin.buffer.read(1)
+            if data:
+                buffer += data
+            else:
+                break
+
+            b = time()
+            if (b - a) >= dt:
+                writeout()
+                a = b
+    finally:
+        writeout()
+        rf.close()
+
+    return 0
+
+
+def replay_stream(file, scale):
+    with open(file, "r") as f:
+        lines = [json.loads(line) for line in f]
+
+    for n in range(len(lines)):
+        data = bytes.fromhex(lines[n]["data"])
+
+        printbytes(data)
+
+        if n < len(lines) - 1:
+            dt = lines[n + 1]["t"] - lines[n]["t"]
+            sleep(dt * scale)
+
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("file", help="Path to .jsonl file to record to or replay from")
+    parser.add_argument("--replay", action="store_true", help="Replay the recording")
+    parser.add_argument(
+        "--echo",
+        action="store_true",
+        default=True,
+        help="Echo record data being recorded to stdout (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--dt",
+        type=float,
+        default=1.0,
+        help="Time resolution in milliseconds (default: %(default)s ms)",
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="Speed up or slow down the replay by this factor",
+    )
+
+    args = parser.parse_args()
+
+    if args.replay:
+        exit(replay_stream(args.file, args.scale))
+    else:
+        exit(record_stream(args.file, args.dt, args.echo))
+
+
+if __name__ == "__main__":
+    main()
