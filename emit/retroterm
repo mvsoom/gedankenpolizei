@@ -1,17 +1,33 @@
-# Use venv Python
-PYTHON=$(which python)
+#!/bin/bash
+# Send stdin text stream to cool-retro-term
+PROFILE= # TODO
+SIZE=300x990 # Terminal window's width x height
 
-# Terminal window's widthxheight
-SIZE=300x990
+# Create a new named pipe
+PIPE=/tmp/retroterm_pipe_$$
+[ -e $PIPE ] && rm $PIPE
+mkfifo $PIPE
 
-SETTLETIME=2
+# Set up trap to catch SIGINT, SIGTERM, and SIGCHLD (when the retro term process ends)
+cleanup() {
+    rm -f $PIPE
+    kill $TERM_PID 2>/dev/null
+    exit 0
+}
+trap cleanup SIGINT SIGTERM SIGCHLD
 
-RUNCMD="$PYTHON -u -m seer.narrate.stream --monitor --jsonl | $PYTHON -u -m seer.thoughts.stream"
-
-FULLCMD="(cd \"$(pwd)\"; clear; sleep $SETTLETIME; $RUNCMD)"
-
+# Launch cool-retro-term and run a command to read from the named pipe
+RUNCMD="(clear; tail -f $PIPE)"
 cool-retro-term \
     -geometry ${SIZE}+0+0 \
-    --profile "Camera Lucida" \
-    -e /bin/bash -c "$FULLCMD" &
-term_pid=$!
+    --profile "$PROFILE" \
+    -e /bin/bash -c "$RUNCMD" > /dev/null 2>&1 &
+
+TERM_PID=$!
+
+# Ensure that the script also exits if the process piping to stdin exits
+while IFS= read -r -n1 -s INPUT; do
+    echo -n "$INPUT" > $PIPE
+done < /dev/stdin
+
+cleanup

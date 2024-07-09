@@ -1,0 +1,3 @@
+#!/bin/bash
+# Monitor stdout to stderr in a pipeline
+tee /dev/stderr
