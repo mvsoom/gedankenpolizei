@@ -1,4 +1,5 @@
 #/bin/bash
-# Send stdin text stream over websocket
+# Send stdin text stream over websocket in binary mode
+# Note: text mode didn't work due to UTF-8 encoding issues, so we just forward them in binary mode and let the receiver handle decoding of possibly incomplete UTF-8 chunks
 PORT=8766
-websocat --exit-on-eof --text ws-l:127.0.0.1:$PORT -
+websocat -b --exit-on-eof ws-l:127.0.0.1:$PORT - $@
