@@ -7,14 +7,11 @@ Regions: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
 
 ## PROBLEMS:
 
-- Speed
-  Slow speed: ~1.5 sec for a single Flash request
-  Likely linked to free trial and very low RPM quotum (1 per minute)
-  But can't upgrade as they don't accept prepaid cards
-
 - No prefill
   There is no prefill for the thoughts.stream module
   However prefills are done within user prompt and called "prefixes"
+
+- No stop words
 
 ## Images
 

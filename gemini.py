@@ -21,17 +21,20 @@ safety_settings = {
     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-# Measure response time
-image = Image.load_from_file("logs/images/1718113430.04286790.jpg")
+# Measure response time: about ~1 sec for q1, about ~0.8 for q2
+while True:
+    image = Image.load_from_file("logs/images/1718113430.04286790.jpg")
 
-t = time.time()
-response = model.generate_content(
-    [
-        image,
-        "What is shown in this image?",
-    ],
-    safety_settings=safety_settings,
-)
-print(f"Response time: {time.time() - t:.2f}s")
-print(response.text)
-
+    t = time.time()
+    # q1 = f"What is shown in this image? (Ignore this number: {random()})"  # Block caching
+    q2 = "cap en"
+    response = model.generate_content(
+        [
+            image,
+            q2,
+        ],
+        safety_settings=safety_settings,
+    )
+    print(f"Response time: {time.time() - t:.2f}s")
+    print(q)
+    print(response.text)
