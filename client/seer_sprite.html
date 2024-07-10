@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>SEER</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+
+        @font-face {
+            font-family: 'JuliaMono-Light';
+            src: url("https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.056/JuliaMono-Light.woff2");
+        }
+
+        @font-face {
+            font-family: 'JuliaMono-Bold';
+            src: url("https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.056/JuliaMono-Bold.woff2");
+        }
+    </style>
+</head>
+<body>
+
+    <video id="video" autoplay playsinline style="display:none"></video>
+
+    <!-- Vertex Shader -->
+    <script id="vs" type="x-shader/x-vertex">
+        uniform sampler2D map;
+        uniform float width;
+        uniform float height;
+        uniform float nearClipping, farClipping;
+        uniform float pointSize;
+        uniform float zOffset;
+        varying vec2 vUv;
+        const float XtoZ = 1.11146;
+        const float YtoZ = 0.83359;
+        void main() {
+            vUv = vec2(position.x / width, position.y / height);
+            vec4 color = texture2D(map, vUv);
+            float depth = (color.r + color.g + color.b) / 3.0;
+            float z = (1.0 - depth) * (farClipping - nearClipping) + nearClipping;
+            vec4 pos = vec4(
+                (position.x / width - 0.5) * z * XtoZ,
+                (position.y / height - 0.5) * z * YtoZ,
+                -z + zOffset,
+                1.0);
+            gl_PointSize = pointSize;
+            gl_Position = projectionMatrix * modelViewMatrix * pos;
+        }
+    </script>
+
+    <!-- Fragment Shader -->
+    <script id="fs" type="x-shader/x-fragment">
+        uniform sampler2D map;
+        varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(map, vUv);
+            gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
+        }
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // Based on three.js examples
+
+        import * as THREE from 'three';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+        // DESIGN related constants
+        const TEXT_HEIGHT = 15; // Max number of text lines to be displayed
+        const TEXT_WIDTH = 32;  // Max number of characters per line before clipping
+        const TEXT_FADEOUT = 7; // Number of lines to fade out
+        const FONT_SIZE = 24;
+        const LINE_HEIGHT = FONT_SIZE * 1.2;
+        const TEXT_COLOR = 'rgba(255, 255, 255, 1.)';
+        const FONT_FAMILY = "'JuliaMono-Light', 'monospace'";
+        const DISPLAY_CONTROLS = true; // Toggle to display or hide controls
+
+        // Note: webcam stream is shown at native resolution
+
+        // Other constants
+        const NEAR_CLIPPING = 2012;
+        const FAR_CLIPPING = 4000;
+        const Z_OFFSET = 706;
+        const POINT_SIZE = 2;
+        const INITIAL_CAMERA_Z = 1500;
+
+        let scene, camera, renderer;
+        let geometry, mesh, material;
+        let mouse, center;
+        let textMesh, textTexture;
+
+        const initialCameraPosition = new THREE.Vector3(0, 0, INITIAL_CAMERA_Z);
+        let targetCameraPosition = initialCameraPosition.clone();
+
+        const textBuffer = [];
+
+        init();
+
+        async function init() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.copy(initialCameraPosition);
+
+            scene = new THREE.Scene();
+            center = new THREE.Vector3();
+            center.z = -1000;
+
+            const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            const texture = new THREE.VideoTexture(video);
+            texture.minFilter = THREE.NearestFilter;
+
+            geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array(600 * 480 * 3); // Approximating canvas width * height
+            for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j++) {
+                vertices[i] = j % 600;
+                vertices[i + 1] = Math.floor(j / 600);
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+            material = new THREE.ShaderMaterial({
+                uniforms: {
+                    'map': { value: texture },
+                    'width': { value: 600 },
+                    'height': { value: 480 },
+                    'nearClipping': { value: NEAR_CLIPPING },
+                    'farClipping': { value: FAR_CLIPPING },
+                    'pointSize': { value: POINT_SIZE },
+                    'zOffset': { value: Z_OFFSET }
+                },
+                vertexShader: document.getElementById('vs').textContent,
+                fragmentShader: document.getElementById('fs').textContent,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                depthWrite: false,
+                transparent: true
+            });
+
+            mesh = new THREE.Points(geometry, material);
+            scene.add(mesh);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = TEXT_WIDTH * FONT_SIZE * 0.6; // Approximate width for monospace characters
+            canvas.height = TEXT_HEIGHT * LINE_HEIGHT + 20; // Extra padding
+            const context = canvas.getContext('2d');
+
+            textTexture = new THREE.CanvasTexture(canvas);
+            textTexture.needsUpdate = true;
+
+            const textMaterial = new THREE.MeshBasicMaterial({
+                map: textTexture,
+                transparent: true,
+            });
+            const textGeometry = new THREE.PlaneGeometry(canvas.width, canvas.height);
+            textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.set(0, 0, 100);
+            scene.add(textMesh);
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setAnimationLoop(animate);
+            container.appendChild(renderer.domElement);
+
+            mouse = new THREE.Vector3(0, 0, 1);
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            document.addEventListener('mouseleave', onDocumentMouseLeave);
+            window.addEventListener('resize', onWindowResize);
+
+            document.addEventListener('wheel', onDocumentMouseWheel);
+            document.addEventListener('touchstart', onDocumentTouchStart, false);
+            document.addEventListener('touchmove', onDocumentTouchMove, false);
+
+            if (DISPLAY_CONTROLS) {
+                const gui = new GUI();
+                gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
+                gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
+                gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
+                gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
+            }
+
+            connectWebSocketVideo();
+            connectWebSocketText();
+
+            function connectWebSocketVideo() {
+                const socket = new WebSocket('ws://localhost:8765');
+                socket.binaryType = 'arraybuffer';
+
+                socket.onopen = () => {
+                    console.log('WebSocket connection for video opened');
+                    setInterval(() => sendFrame(socket, video), 100);
+                };
+
+                socket.onclose = () => {
+                    console.log('WebSocket connection for video closed, retrying...');
+                    setTimeout(connectWebSocketVideo, 1000);
+                };
+
+                socket.onerror = (error) => {
+                    console.log('WebSocket video error:', error);
+                    socket.close();
+                };
+            }
+
+            // Handle decoding of possibly incomplete UTF-8 chunks
+            const decoder = new TextDecoder('utf-8', { stream: true });
+
+            function connectWebSocketText() {
+                const socket = new WebSocket('ws://localhost:8766');
+                socket.binaryType = 'arraybuffer';
+
+                socket.onopen = () => {
+                    console.log('WebSocket connection for text opened');
+                };
+
+                socket.onmessage = (event) => {
+                    // Decode the chunk, allowing partial characters to be buffered
+                    const text = decoder.decode(event.data, { stream: true });
+                    console.log('Received message:', text);
+                    if (text) {
+                        // Split the text by \n to handle multiple lines
+                        const lines = text.split('\n');
+                        lines.forEach((line, index) => {
+                            if (index === 0) {
+                                // For the first line, append to the last element of textBuffer
+                                if (textBuffer.length > 0) {
+                                    textBuffer[textBuffer.length - 1] += line;
+                                } else {
+                                    // If textBuffer is empty, just push the line
+                                    textBuffer.push(line);
+                                }
+                            } else {
+                                // For subsequent lines, add them as new elements to textBuffer
+                                textBuffer.push(line);
+                            }
+                        });
+                        updateTextCanvas(canvas, context, textBuffer, textTexture);
+                    }
+                };
+
+                socket.onclose = () => {
+                    console.log('WebSocket connection for text closed, retrying...');
+                    setTimeout(connectWebSocketText, 1000);
+                };
+
+                socket.onerror = (error) => {
+                    console.log('WebSocket text error:', error);
+                    socket.close();
+                };
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDocumentMouseMove(event) {
+            mouse.x = (event.clientX - window.innerWidth / 2) * 8;
+            mouse.y = (event.clientY - window.innerHeight / 2) * 8;
+            targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+        }
+
+        function onDocumentMouseLeave(event) {
+            targetCameraPosition.copy(initialCameraPosition);
+        }
+
+        function onDocumentMouseWheel(event) {
+            camera.position.z += event.deltaY * 0.5;
+        }
+
+        function onDocumentTouchStart(event) {
+            if (event.touches.length === 1) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            } else if (event.touches.length === 2) {
+                touchStartDistance = getTouchDistance(event.touches);
+            }
+        }
+
+        function onDocumentTouchMove(event) {
+            if (event.touches.length === 1) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            } else if (event.touches.length === 2) {
+                const currentDistance = getTouchDistance(event.touches);
+                const distanceDelta = currentDistance - touchStartDistance;
+                camera.position.z -= distanceDelta * 0.5;
+                touchStartDistance = currentDistance;
+            }
+        }
+
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function sendFrame(socket, video) {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    blob.arrayBuffer().then(buffer => {
+                        socket.send(buffer);
+                    });
+                    console.log('Sent video frame');
+                }
+            }, 'image/jpeg');
+        }
+
+        // Updated updateTextCanvas function
+        function updateTextCanvas(canvas, context, textBuffer, texture) {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.font = `bold ${FONT_SIZE}px ${FONT_FAMILY}`;
+            context.textAlign = 'left';
+            context.textBaseline = 'top';
+
+            const visibleText = textBuffer.slice(-TEXT_HEIGHT);
+
+            // Draw text from the bottom up
+            visibleText.forEach((line, index) => {
+                let alpha = 1;
+                if (index < TEXT_FADEOUT) {
+                    alpha = (index + 1) / TEXT_FADEOUT;
+                }
+                context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                context.fillText(line, 10, canvas.height - (visibleText.length - index) * LINE_HEIGHT - 10);
+            });
+
+            texture.needsUpdate = true; // Mark the texture for update
+        }
+
+        function animate() {
+            camera.position.lerp(targetCameraPosition, 0.05);
+            camera.lookAt(center);
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

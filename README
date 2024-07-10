@@ -13,6 +13,16 @@
   * Python3 version + requirements
   * Helper programs:
     - If using html client websocat (rust install websocat) -- also requires libssl-dev
+    - lolcat (optionally)
+    - cool-retro-term
+
+### client
+
+- seer_canvas.html vs seer_sprite.html:
+  * Arial (is quite nearly monospaced, strangely) vs monospaced
+  * 2D canvas vs sprite (sprite is supposed to be faster: a sprite is a 2D surface in a 3D scene, but not sure if we can add 3D effects on it)
+- Looks like webcam size is still hardcoded, should change this
+- Organize HTML code
 
 ### `seer.thoughts`
 
@@ -62,3 +72,6 @@ ASCII
 ## Dressing
 
 - Hiding window title bar: https://extensions.gnome.org/extension/1287/unite/
+- https://www.reddit.com/r/unixporn/comments/l3i7st/comment/gkfhjc4/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button:
+  * Script to change cool-retro-term's colors
+- cool-retro-term can display lolcat stuff
