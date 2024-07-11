@@ -26,12 +26,17 @@ while True:
     image = Image.load_from_file("logs/images/1718113430.04286790.jpg")
 
     t = time.time()
-    # q1 = f"What is shown in this image? (Ignore this number: {random()})"  # Block caching
-    q2 = "cap en"
+    # q = f"What is shown in this image? (Ignore this number: {random()})"  # Block caching
+    # q = "cap en"
+    q = "Are these images identical?"
     response = model.generate_content(
         [
             image,
-            q2,
+            image,
+            image,
+            image,
+            image,
+            q,
         ],
         safety_settings=safety_settings,
     )

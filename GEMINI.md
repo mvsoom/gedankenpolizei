@@ -11,8 +11,6 @@ Regions: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
   There is no prefill for the thoughts.stream module
   However prefills are done within user prompt and called "prefixes"
 
-- No stop words
-
 ## Images
 
 https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/send-multimodal-prompts#image-requirements
@@ -31,17 +29,42 @@ Up to 3600 images
 
 > No specific limits to the number of pixels in an image; however, larger images are scaled down to fit a maximum resolution of 3072 x 3072 while preserving their original aspect ratio.
 
+## Latency
+
+"Cold start" of 1 to 3 seconds, then latency stays <1 sec for up to ~8 images. So latency very good. Could still do image scaling (older = smaller) to include even more images.
+
+Minimum latency ~0.5 seconds.
+
+Stop sequences are supported
+
 ## Gemma and other models
 
 ### [PaliGemma: single turn image/video model](https://github.com/google-research/big_vision/tree/main/big_vision/configs/proj/paligemma)
 
-!!!
-RUN IN REALTIME ON VIDEO: need to check this: https://github.com/sumo43/loopvlm
+- Can do video captioning (see below)
 
-He got it working at 16 fps (10 tokens) on the 224x224 on a RTX 4090: https://x.com/sumo43_/status/1791589684121903555
-!!!
+- Can analyze single images in realtime: [this repo forked from fastllm](https://github.com/sumo43/loopvlm) got it [working at 16 fps (10 tokens) on the 224x224 on a RTX 4090](https://x.com/sumo43_/status/1791589684121903555)
 
-[Can be deployed on Google vertex](https://console.cloud.google.com/vertex-ai/publishers/google/model-garden/363?project=gen-lang-client-0149736153)
+I investigated this. TLDR: dont know how good the captioning is and how fast it can be, but it is a fair shot. If we do use it, need to serve on an RTX 4090 using vLLM on runpod.io.
+
+Details:
+- [Repo code](https://github.com/sumo43/loopvlm) is a terrible mess, trying to get it working at https://github.com/mvsoom/loopvlm. also opened an issue at original repo
+- Cannot reproduce on brev.dev because A10 is too slow; does not take advantage of int8/int4 -- RTX 4090 really is the best here in terms of performance and performance/$. For comparing GPUs see [this famous blog article](https://timdettmers.com/2023/01/30/which-gpu-for-deep-learning/#). Relevant image from the blog: ![image](https://i0.wp.com/timdettmers.com/wp-content/uploads/2023/01/GPUs_Ada_performance_per_dollar6.png)
+
+  * For A10 testing: bfloat16 8x slower than quantized. Because A10 has no optimized support for that while RTX 4090 does. So useless to use A10 for reducing latency
+
+- We are looking for the term **autoscaling** in deployment. Autoscaling means that endpoint can turn on and shut down when we want, this is not trivial, not even on Google cloud, but could work on, runpod
+- So this is involved and needs to wait. For now we use Gemini Flash
+
+- Seems like for autoscaling deploying [runpod](https://www.runpod.io/gpu-instance/pricing) is the way to go! Serverless autoscalign at ~0.5$/hr for RTX 4090 and good management and also cheaper services for RTX 3090 which still very capable according to graph above!
+
+  * Paligemma is supported by vLLM, a serving framework: https://github.com/vllm-project/vllm/pull/5189. and this (vLLM) supports runpod!! runpod.io is the way to go!
+
+  * **vast.ai** is one supplier of RTX 4090, and they can work with Bancontact debit. Prices are ~0.4/hr and use docker images for development. But no autoscaling, so prefer runpod
+
+- [PaliGemmaCan be deployed on Google vertex](https://console.cloud.google.com/vertex-ai/publishers/google/model-garden/363?project=gen-lang-client-0149736153)
+  * Can be deployed but only on T4 or V100, dont know if thsi will be fast enough
+  * Autoscaling seems difficult
 
 [Supports video captioning](https://github.com/google-research/big_vision/issues/117)
 - Video support here: https://github.com/google-research/big_vision/blob/01edb81a4716f93a48be43b3a4af14e29cdb3a7f/big_vision/models/proj/paligemma/paligemma.py#L74
@@ -62,13 +85,16 @@ Notebooks (check all of them!):
 - https://colab.research.google.com/drive/1aJil6wmaef_EZ-eCS8T4WuqD2AiFNHkv?usp=sharing#scrollTo=25BV1ljHM7Wy
 
 Available commands from last notebook:
-"cap {lang}\n": very raw short caption (from WebLI-alt).
-"caption {lang}\n": nice, coco-like short captions.
-"describe {lang}\n": somewhat longer more descriptive captions.
-"ocr\n": optical character recognition.
-"answer en {question}\n": question answering about the image contents.
-"question {lang} {answer}\n": question generation for a given answer.
-"detect {thing} ; {thing}\n": count objects in a scene.
+
+- "cap {lang}\n": very raw short caption (from WebLI-alt).
+- "caption {lang}\n": nice, coco-like short captions.
+- "describe {lang}\n": somewhat longer more descriptive captions.
+- "ocr\n": optical character recognition.
+- "answer en {question}\n": question answering about the image contents.
+- "question {lang} {answer}\n": question generation for a given answer.
+- "detect {thing} ; {thing}\n": count objects in a scene.
+
+Other stuff
 
 - 4 bit quantization of 3b model needs less than 3 GB VRAM
 - bflat16 needs 6 GB VRAM
