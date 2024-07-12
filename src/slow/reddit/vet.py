@@ -1,9 +1,11 @@
 import argparse
-import pandas as pd
-import numpy as np
 from sys import exit
-from lib import tui
+
+import numpy as np
+import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+
+from lib import tui
 from makeposts import formatpost
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
@@ -16,8 +18,8 @@ SCORE = {
     MINUS: -1,
 }
 
-#HAPPY = "I am feeling good, happy, fine, neutral."
-HAPPY = "I see people."
+# BIAS = "I am feeling good, happy, fine, neutral."
+BIAS = "I see people."
 
 
 def weigh_subreddits(pdf, vdf):
@@ -43,12 +45,12 @@ def main(args):
     probs = weigh_subreddits(pdf, vdf)
     embeddings = np.stack(pdf["embedding"], dtype="float32")
 
-    if args.happy:
+    if args.bias:
         from makeposts import EMBEDDING_MODEL
 
         model = SentenceTransformer(EMBEDDING_MODEL)
 
-        happy_embedding = model.encode(HAPPY, convert_to_tensor=True)
+        bias_embedding = model.encode(BIAS, convert_to_tensor=True)
 
     def sample_post(previous_post=None, numcandidates=200, maxtries=20, tried=0):
         if previous_post:
@@ -70,11 +72,11 @@ def main(args):
 
         # If no valid candidate, retry
         if len(candidates) > 0:
-            if args.happy:
+            if args.bias:
                 candidate_embeddings = np.stack(
                     candidates["embedding"], dtype="float32"
                 )
-                scores = util.cos_sim(happy_embedding, candidate_embeddings)
+                scores = util.cos_sim(bias_embedding, candidate_embeddings)
                 best = scores.argmax().item()
                 return candidates.iloc[best]
             else:
@@ -98,7 +100,7 @@ def vet(args, vdf, sample_post):
 
     def keypressed(screen, c):
         if c in [PLUS, ENTER, MINUS]:
-            # Add the sample to the vetting df and write out immediately
+            # Add the sample to the vetting df
             nonlocal sample
             vdf.loc[sample.name, "score"] = int(SCORE[c])
 
@@ -129,7 +131,13 @@ if __name__ == "__main__":
 
     parser.add_argument("postfile", help="Post .feather file containing posts to vet")
     parser.add_argument("vetfile", help="Output vet .feather file to append to")
-    parser.add_argument("--happy", action="store_true", help="Prefer happier posts")
+    parser.add_argument(
+        "--bias",
+        default=None,
+        nargs="?",
+        const=BIAS,
+        help="Bias post selection? If given without argument, defaults to: '%(default)s'",
+    )
 
     # Parse the command line arguments
     args = parser.parse_args()

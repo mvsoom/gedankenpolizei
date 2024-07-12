@@ -3,4 +3,5 @@ test/
 subreddit/
 posts/
 posts_backup/
+assets/
 __pycache__/

@@ -2,15 +2,16 @@
 
 import argparse
 import os
-import pandas as pd
-from sys import exit
-import patterns
 import re
 import textwrap
+from sys import exit
+
 import numpy as np
+import pandas as pd
 from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer, AutoModelForTokenClassification
-from transformers import pipeline
+from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+
+import patterns
 
 
 def formatpost(post, symbol="🟦", width=60):
@@ -24,8 +25,8 @@ def formatpost(post, symbol="🟦", width=60):
     return formattedpost
 
 
-def printpost(post):
-    print(formatpost(post))
+def printpost(post, *args, **kwargs):
+    print(formatpost(post, *args, **kwargs))
 
 
 def read_dfs(inputs):
