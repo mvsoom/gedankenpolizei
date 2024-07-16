@@ -26,32 +26,24 @@ safety_settings = {
 }
 
 PROMPT = """\
-Evaluate the Reddit post as GOOD or BAD. GOOD posts are interesting starting points for an artificial stream of consciousnes of an AI camera sculpture hanging in an art installation. GOOD posts contain everyday bland or strikingly original thoughts, creative copypasta, or moving utterances an AI could have. GOOD posts are raw, human-like, with cynicism, elation, humor, internet poetry, or absurdity, referencing "seeing" humans or reflecting about people, with timeless, "small" worldly thoughts.
+Evaluate the Reddit post as GOOD or BAD. GOOD posts are interesting starting points for an artificial stream of consciousnes of an AI camera sculpture hanging in an art installation. GOOD posts contain everyday bland or strikingly original thoughts, creative copypasta, or moving utterances an AI could have. Independent of their length, GOOD posts are raw, human-like, with cynicism, elation, humor, internet poetry, or absurdity, referencing "seeing" humans or reflecting about people, with timeless, "small" worldly thoughts.
 
-BAD posts include specifically human properties, situations or activities (age, home, sex, family, friends, job, etc.): an AI aspiring to BE HUMAN but knowing that IT IS NOT and that cannot talk, hear or move about, wouldn't have these thoughts. BAD posts are simply too recognizable as (toxic?) Reddit posts rather than inner monologue.
+BAD posts include specifically human-identifying properties, situations or activities (age, home, sex, family, friends, job, etc.): an AI aspiring to BE HUMAN but knowing that IT IS NOT and that cannot talk, hear or move about, wouldn't have these thoughts. BAD posts are simply too recognizable as (toxic?) Reddit posts rather than inner monologue.
 
+{{EXAMPLES}}
 Here is the post:
 ```
 {{POST}}
 ```
 
-Output only GOOD or BAD{{EXPLAIN}}. Priors: p(GOOD) = 0.2, p(BAD) = 0.8.
+Output only GOOD or BAD{{EXPLAIN}}. Priors: p(GOOD) = 0.2, p(BAD) = 0.8.\
 """  # ~220 tokens
 
-# print(model.count_tokens(PROMPT))
-
-# See notebook for more prompt elements
-# Other:
-# - Topic
-# - Emotion
-# - Toxicity
-# Here are a few examples:
-# {{EXAMPLE OF GOOD}}
-# {{EXAMPLE OF BAD}}
-# {{EXAMPLE OF BAD}}
+# TODO: Independent of their length, GOOD posts are raw, ...
+# TODO: BAD posts include specifically human-identifying properties, situations or activities (age, home, sex, family, friends, job, etc.): ...
 
 
-def ask_gemini(post, explain=False):
+def ask_gemini(post, explain=False, examples=None):
     """Post is a the title + body of a Reddit post where sentences are separated by newlines."""
     query = PROMPT.replace("{{POST}}", post)
 
@@ -63,6 +55,16 @@ def ask_gemini(post, explain=False):
     else:
         generation_config = GenerationConfig(max_output_tokens=1)  # Only GOOD or BAD
         query = query.replace("{{EXPLAIN}}", "")
+
+    if examples:
+        text = "Here are some examples of GOOD and BAD posts:\n"
+
+        for label, sample in examples:
+            text += f"```\n{sample['post']}\n``` => {label}\n"
+
+        query = query.replace("{{EXAMPLES}}", text)
+    else:
+        query = query.replace("{{EXAMPLES}}", "")
 
     t = time.time()
     response = model.generate_content(

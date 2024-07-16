@@ -6,6 +6,7 @@ from sys import exit
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+from tqdm import tqdm
 
 from autovet import ask_gemini
 from lib import tui
@@ -23,9 +24,6 @@ SCORE = {
 
 # BIAS = "I am feeling good, happy, fine, neutral."
 BIAS = "I see people."
-
-class NoMoreSamples(Exception):
-    pass
 
 
 def weigh_subreddits(pdf, vdf):
@@ -50,14 +48,11 @@ def writeout(vdf, path):
 
 def main(args):
     pdf = pd.read_feather(args.postfile)
-    try:
-        vdf = pd.read_feather(args.vetfile)
-    except FileNotFoundError:
-        vdf = pd.DataFrame()
+    vdf = pd.read_feather(args.vetfile)
 
-    args.n = len(pdf) if args.n is None else args.n
-    probs = weigh_subreddits(pdf, vdf)
-    embeddings = np.stack(pdf["embedding"], dtype="float32")
+    if args.reference:
+        rdf = pd.read_feather(args.reference)
+        reference_embeddings = np.stack(rdf["embedding"], dtype="float32")
 
     if args.bias:
         from makeposts import EMBEDDING_MODEL
@@ -65,10 +60,14 @@ def main(args):
         model = SentenceTransformer(EMBEDDING_MODEL)
         bias_embedding = model.encode(BIAS, convert_to_tensor=True)
 
+    args.n = len(pdf) if args.n is None else args.n
+    probs = weigh_subreddits(pdf, vdf)
+    embeddings = np.stack(pdf["embedding"], dtype="float32")
+
     def sample_post(previous_post=None, numcandidates=200, maxtries=20, tried=0):
-        if previous_post:
+        if previous_post is not None:
             # Sample semantically similar posts, regardless of subreddit
-            query = pdf.loc[previous_post].embedding
+            query = previous_post.embedding
             results = util.semantic_search(query, embeddings, top_k=numcandidates)[0]
 
             candidates = pdf.iloc[[result["corpus_id"] for result in results]]
@@ -102,26 +101,58 @@ def main(args):
                 return candidates.iloc[best]
         else:
             if tried >= maxtries:
-                raise NoMoreSamples(
-                    f"Can't find fresh sample after {maxtries} tries. Done?"
-                )
+                raise ValueError(f"Can't find fresh sample after {maxtries} tries")
             return sample_post(None, numcandidates, maxtries, tried=tried + 1)
+
+    def predict(
+        sample,
+        explain=False,
+        num_good_examples=1,
+        num_bad_examples=1,
+        numcandidates=200,
+    ):
+        if args.reference:
+            nonlocal rdf, reference_embeddings
+
+            # Find semantically similar examples in the reference set
+            query = sample.embedding
+            results = util.semantic_search(
+                query, reference_embeddings, top_k=numcandidates
+            )[0]
+
+            examples = []
+
+            for result in results:
+                candidate = rdf.iloc[result["corpus_id"]]
+
+                if num_good_examples > 0 and candidate["score"] == 1:
+                    examples.append(("GOOD", candidate))
+                    num_good_examples -= 1
+
+                if num_bad_examples > 0 and candidate["score"] == -1:
+                    examples.append(("BAD", candidate))
+                    num_bad_examples -= 1
+
+                if num_good_examples == 0 and num_bad_examples == 0:
+                    break
+        else:
+            examples = None
+
+        return ask_gemini(sample["post"], explain=explain, examples=examples)
 
     try:
         if args.autovet:
-            autovet(args, vdf, sample_post)
+            autovet(args, vdf, sample_post, predict)
         else:
-            vet(args, vdf, sample_post)
+            vet(args, vdf, sample_post, predict)
     finally:
         writeout(vdf, args.vetfile)
 
     return 0
 
 
-def autovet(args, vdf, sample_post):
-    from tqdm import tqdm  # Import tqdm
-
-    for _ in tqdm(range(args.n)):
+def autovet(args, vdf, sample_post, predict):
+    for numdone in tqdm(range(args.n)):
         sample = sample_post()
 
         try:
@@ -144,36 +175,26 @@ def autovet(args, vdf, sample_post):
 """
 TODO
 
-- search for "TODO" in the code
 - multiple threads: vdf must be kept up to date between threads
 - validate with few shot or zero shot
-- what happens if ready? can test on validation/validation_posts_small.feather
 
 - incorporate autovet.py file
-
-- exception resistant writing out of autovet stuff: use "autoscore" column next to "score"?
-
-
-
 """
 
 
-def vet(args, vdf, sample_post):
+def vet(args, vdf, sample_post, predict):
     numdone = 0
 
     def display(sample):
         subreddit = sample["subreddit"]
         post = formatpost(sample["post"])
+        text = f"r/{subreddit}\n{post}"
 
-        if not args.predict:
-            return f"r/{subreddit}\n{post}"
-        else:
-            # TODO
-            content = f"r/{subreddit}\n{post}"
+        if args.predict:
+            reply = predict(sample, explain=True)
+            text += " [" + reply + "]"
 
-            reply = ask_gemini(sample["post"], explain=True)
-
-            return content + " " + f"[{reply}]"
+        return text
 
     def keypressed(screen, c):
         if c in [PLUS, ENTER, MINUS]:
@@ -183,7 +204,7 @@ def vet(args, vdf, sample_post):
             numdone += 1
 
             # Set stage for the next sample to be vetted
-            sample = sample_post(sample.name if c == PLUS else None)
+            sample = sample_post(sample if c == PLUS else None)
             screen.text = display(sample)
             screen.display()
         elif c == EXIT:
@@ -225,11 +246,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Activate autovet mode",
     )
+    parser.add_argument(
+        "--reference",
+        default=None,
+        help="Reference .feather file containing ground-truth posts and labels for use with --predict or --autovet",
+    )
 
     # Parse the command line arguments
     args = parser.parse_args()
 
     if args.autovet:
-        assert not args.predict, "Cannot predict and autovet at the same time"
+        assert not args.predict, "Cannot --predict and --autovet at the same time"
+    if args.reference:
+        assert (
+            args.predict or args.autovet
+        ), "Cannot --reference without --predict or --autovet"
 
     exit(main(args))
