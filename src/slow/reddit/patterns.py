@@ -1,6 +1,5 @@
 import re
 
-
 REDACTED_KEYWORDS = [
     "redacted",
     "removed",
@@ -95,6 +94,8 @@ LABEL_PATTERNS = {
             "my childhood",
             "my boss",
             "my body",
+            "my face",
+            "my exam(s)?",
             "our country",
             "boyfriend",
             "girlfriend",
@@ -156,9 +157,11 @@ LABEL_PATTERNS = {
             "does anyone",
             "thank you",
             "this video",
+            "this community",
+            "this article",
             "soundcloud",
             "podcast",
-            "you guys",
+            "(yo)?u guys",
             "admin",
             "title",
             "edits",
@@ -174,6 +177,7 @@ LABEL_PATTERNS = {
             "as a human( being)?",
             "your opinion(s)?",
             "disclaimer",
+            "curious to hear",
         ),
         REDACTED,
         URL,
