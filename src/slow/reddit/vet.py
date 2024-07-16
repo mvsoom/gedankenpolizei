@@ -1,7 +1,9 @@
 """Vet posts manually or automatically"""
 
 import argparse
+import re
 from sys import exit
+from time import time
 
 import numpy as np
 import pandas as pd
@@ -41,7 +43,8 @@ def weigh_subreddits(pdf, vdf):
 
 def writeout(vdf, path):
     if "score" in vdf:
-        vdf["score"] = vdf["score"].astype("int")
+        # vdf["score"] = vdf["score"].astype("int")
+        pass
     vdf.to_feather(path, compression="zstd")
     print(f"Written to {path}")
 
@@ -64,10 +67,10 @@ def main(args):
     probs = weigh_subreddits(pdf, vdf)
     embeddings = np.stack(pdf["embedding"], dtype="float32")
 
-    def sample_post(previous_post=None, numcandidates=200, maxtries=20, tried=0):
-        if previous_post is not None:
+    def sample_post(previous_sample=None, numcandidates=200, maxtries=20, tried=0):
+        if previous_sample is not None:
             # Sample semantically similar posts, regardless of subreddit
-            query = previous_post.embedding
+            query = previous_sample.embedding
             results = util.semantic_search(query, embeddings, top_k=numcandidates)[0]
 
             candidates = pdf.iloc[[result["corpus_id"] for result in results]]
@@ -112,9 +115,9 @@ def main(args):
         numcandidates=200,
     ):
         if args.reference:
+            # Find semantically similar examples in the reference set for few-shot prompting
             nonlocal rdf, reference_embeddings
 
-            # Find semantically similar examples in the reference set
             query = sample.embedding
             results = util.semantic_search(
                 query, reference_embeddings, top_k=numcandidates
@@ -136,6 +139,7 @@ def main(args):
                 if num_good_examples == 0 and num_bad_examples == 0:
                     break
         else:
+            # Zero-shit prompting
             examples = None
 
         return ask_gemini(sample["post"], explain=explain, examples=examples)
@@ -151,35 +155,29 @@ def main(args):
     return 0
 
 
+def extract_score(reply, re=re.compile(r"^\d*\.?\d+")):
+    """Extracts a floating-point number followed by anything"""
+    match = re.match(reply.strip())
+    if match:
+        return float(match.group(0))
+    else:
+        raise ValueError(f"Unable to extract score from `{reply}`")
+
+
 def autovet(args, vdf, sample_post, predict):
-    for numdone in tqdm(range(args.n)):
+    for _ in tqdm(range(args.n)):
         sample = sample_post()
 
         try:
-            reply = ask_gemini(sample["post"], explain=False)
-
-            if reply == "GOOD":
-                score = 1
-            elif reply == "BAD":
-                score = -1
-            else:
-                raise ValueError(f"Unexpected reply: {reply}")
+            reply = predict(sample, explain=False)
+            score = extract_score(reply)
         except Exception as e:
             fp = formatpost(sample["post"])
             print(f"Error processing ```{fp}```: {e}")
-            score = 0
+            score = float("nan")
+            raise e
 
-        vdf.loc[sample.name, "score"] = int(score)
-
-
-"""
-TODO
-
-- multiple threads: vdf must be kept up to date between threads
-- validate with few shot or zero shot
-
-- incorporate autovet.py file
-"""
+        vdf.loc[sample.name, "score"] = score
 
 
 def vet(args, vdf, sample_post, predict):
@@ -191,8 +189,10 @@ def vet(args, vdf, sample_post, predict):
         text = f"r/{subreddit}\n{post}"
 
         if args.predict:
+            t = time()
             reply = predict(sample, explain=True)
-            text += " [" + reply + "]"
+            dt = time() - t
+            text += f" [{reply}] (took {dt:.2f}s)"
 
         return text
 

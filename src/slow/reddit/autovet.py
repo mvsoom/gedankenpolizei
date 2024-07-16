@@ -1,8 +1,5 @@
 """Vet posts automatically with few shot Gemini"""
 
-import argparse
-import sys
-import time
 
 import vertexai
 from vertexai.generative_models import (
@@ -29,18 +26,15 @@ PROMPT = """\
 Evaluate the Reddit post as GOOD or BAD. GOOD posts are interesting starting points for an artificial stream of consciousnes of an AI camera sculpture hanging in an art installation. GOOD posts contain everyday bland or strikingly original thoughts, creative copypasta, or moving utterances an AI could have. Independent of their length, GOOD posts are raw, human-like, with cynicism, elation, humor, internet poetry, or absurdity, referencing "seeing" humans or reflecting about people, with timeless, "small" worldly thoughts.
 
 BAD posts include specifically human-identifying properties, situations or activities (age, home, sex, family, friends, job, etc.): an AI aspiring to BE HUMAN but knowing that IT IS NOT and that cannot talk, hear or move about, wouldn't have these thoughts. BAD posts are simply too recognizable as (toxic?) Reddit posts rather than inner monologue.
-
-{{EXAMPLES}}
+{{OPTIONAL_EXAMPLES}}
 Here is the post:
 ```
 {{POST}}
 ```
 
-Output only GOOD or BAD{{EXPLAIN}}. Priors: p(GOOD) = 0.2, p(BAD) = 0.8.\
+Given the priors `p(GOOD) = 0.25`, `p(BAD) = 1 - p(GOOD) = 0.75`, output a single float representing `p(GOOD|post)` followed by a one-sentence justification.\
 """  # ~220 tokens
-
-# TODO: Independent of their length, GOOD posts are raw, ...
-# TODO: BAD posts include specifically human-identifying properties, situations or activities (age, home, sex, family, friends, job, etc.): ...
+# Note: "followed by a one-sentence justification" is crucial for the model to generate output starting with a float
 
 
 def ask_gemini(post, explain=False, examples=None):
@@ -48,61 +42,28 @@ def ask_gemini(post, explain=False, examples=None):
     query = PROMPT.replace("{{POST}}", post)
 
     if explain:
+        # Let the LLM finish with the one-sentence justification
         generation_config = None
-        query = query.replace(
-            "{{EXPLAIN}}", " followed by a one-sentence justification"
-        )
     else:
-        generation_config = GenerationConfig(max_output_tokens=1)  # Only GOOD or BAD
-        query = query.replace("{{EXPLAIN}}", "")
+        # Cut the LLM short after the float
+        generation_config = GenerationConfig(max_output_tokens=4)
 
     if examples:
-        text = "Here are some examples of GOOD and BAD posts:\n"
+        text = "\nHere are some examples of GOOD and BAD posts:\n"
 
         for label, sample in examples:
             text += f"```\n{sample['post']}\n``` => {label}\n"
 
-        query = query.replace("{{EXAMPLES}}", text)
+        query = query.replace("{{OPTIONAL_EXAMPLES}}", text)
     else:
-        query = query.replace("{{EXAMPLES}}", "")
+        query = query.replace("{{OPTIONAL_EXAMPLES}}", "")
 
-    t = time.time()
     response = model.generate_content(
         query,
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
-    dt = time.time() - t
 
     reply = response.text
 
-    if explain:
-        reply += " (took {:.2f}s)".format(dt)
-
     return reply
-
-
-def main(args):
-    pass
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-
-    parser.add_argument(
-        "postfile", help="Post .feather file containing posts to automatically vet"
-    )
-    parser.add_argument("vetfile", help="Output vet .feather file to append to")
-    parser.add_argument(
-        "--vetted",
-        default=None,
-        help="Optional vet .feather file containing references to vetted posts for few shot learning",
-    )
-    parser.add_argument(
-        "-n", type=int, default=sys.maxsize, help="Number of posts to vet"
-    )
-
-    # Parse the command line arguments
-    args = parser.parse_args()
-
-    exit(main(args))
