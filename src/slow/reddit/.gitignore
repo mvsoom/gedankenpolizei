@@ -1,0 +1,8 @@
+.venv/
+test/
+subreddit/
+posts/
+posts_backup/
+assets/
+validation/
+__pycache__/
