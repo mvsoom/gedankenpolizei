@@ -4,11 +4,11 @@ from pprint import pformat
 
 from anthropic import Anthropic
 
-import seer.env as env
-from seer.cost import APICosts
-from seer.image.frame import encode_image
-from seer.log import debug, error, info, verbose
-from seer.narrate import (
+import src.env as env
+from src.cost import APICosts
+from src.image.frame import encode_image
+from src.log import debug, error, info, verbose
+from src.narrate import (
     IMAGE_MAX_SIZE,
     MAX_TOKENS,
     MEMORY_MAX_IMAGES,
@@ -21,7 +21,7 @@ from seer.narrate import (
     SYSTEM_PROMPTFILE,
     TILE_NUM_FRAMES,
 )
-from seer.util import (
+from src.util import (
     mask_base64_messages,
     read_prompt_file,
     replace_variables_in_prompt,

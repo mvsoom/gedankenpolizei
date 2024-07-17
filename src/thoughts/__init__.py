@@ -1,4 +1,4 @@
-from seer import env
+from src import env
 
 # Import all THOUGHTS_* dotenv variables into this namespace
 globals().update(

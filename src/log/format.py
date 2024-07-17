@@ -4,7 +4,7 @@ from time import time
 
 from dateutil.relativedelta import relativedelta
 
-from seer import env
+from src import env
 
 IMAGE_LOG_PATH = Path(env.LOG_DIR) / "images"
 IMAGE_LOG_PATH.mkdir(parents=True, exist_ok=True)

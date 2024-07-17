@@ -11,11 +11,11 @@ from time import sleep, time
 
 from PIL import Image
 
-from seer.image.frame import format_time, sample_frames, timestamp
-from seer.image.tile import concatenate_images_grid
-from seer.log import debug, error
-from seer.narrate import TILE_NUM_FRAMES, TILE_SIZE
-from seer.narrate.frame import narrate
+from src.image.frame import format_time, sample_frames, timestamp
+from src.image.tile import concatenate_images_grid
+from src.log import debug, error
+from src.narrate import TILE_NUM_FRAMES, TILE_SIZE
+from src.narrate.frame import narrate
 
 # Ensure print always flushes to stdout
 print = functools.partial(print, flush=True)

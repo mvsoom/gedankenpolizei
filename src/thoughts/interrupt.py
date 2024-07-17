@@ -1,6 +1,6 @@
 import anthropic
 
-from seer import env
+from src import env
 
 
 def process_stream(text):

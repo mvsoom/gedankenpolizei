@@ -2,13 +2,23 @@
 
 ## TODO
 
-## bleak.agency
+- Search for TODO everywhere
 
-forward to github.io static webpage:
+- Search for Claude
 
-https://dcc.godaddy.com/control/connectdomain/bleak.agency/connect?itc=mcx_mya_products
+- animation of thought walks in embedding space
 
-https://sbcode.net/threejs/github-pages-vite/
+- FAST.md
+
+- SLOW.md
+
+- update requirements.txt
+
+- QA.md
+
+- JURY.md
+
+- GEMINI.md
 
 ### General
 
@@ -17,12 +27,6 @@ https://sbcode.net/threejs/github-pages-vite/
   * For this the https://pypi.org/project/yaml-config-override/ package is good
   * see `yaml` branch
 - Maybe switch to ffmpegcv Python library if there is too much overhead in resizing/recasting images: it does this on ffmpeg side
-- Document dependenceis:
-  * Python3 version + requirements
-  * Helper programs:
-    - If using html client websocat (rust install websocat) -- also requires libssl-dev
-    - lolcat (optionally)
-    - cool-retro-term
 
 ### client
 
@@ -42,44 +46,3 @@ https://sbcode.net/threejs/github-pages-vite/
 - Deal with RESPONSE_TIMEOUT and other API errors
 - Set NARRATE_TILE_NUM_FRAMES higher. WARNING: turn off stop sequence "</narration>" to see if the model understands NARRATE_TILE_NUM_FRAMES > 1 -- otherwise it will describe each frame within the til
 - Make a second log file that always records everything at the debug level
-
-## Latency issues
-
-Latency can vary depending on the world's use of the API as much as 3x.
-
-Knobs:
-
-1. Smaller Claude model
-2. Smaller image
-3. Smaller memory bank size (# of previous images)
-
-Quick latency (in sec) testing with a single sentence per tile, one frame per tile of size (640, 480):
-
-- HAIKU:
-  1.52, 1.55, 1.56, 1.61, 1.90, 2.00, 2.21, 2.70
-- SONNET:
-  2.36, 2.29, 2.58, 3.56, 3.26, 3.37, 3.49, 3.76
-- OPUS:
-  4.26, 3.93, 5.25, 5.17, 5.78, 7.53
-
-The only other function that takes considerable time is the encode to PNG in order to send it to Claude, which is at most 0.1 sec.
-
-These latencies include Python and Internet overhead. The computation (model) latencies can be checked at https://console.anthropic.com/settings/logs and are O(0.5) sec lower than the estimates above
-
-## Cost issues
-
-We could control for cost rather than latency. Lower latency = higher cost. Costs are dominated by the number of images and their size.
-
-## Visualization
-
-ASCII
-- https://medium.com/@restlessladder/creating-cool-ascii-animation-and-watching-in-the-terminal-56f1c46ee35a
-- mplayer -fs -vo caca tv:// -tv driver=v4l2:device=/dev/video0
-  * https://forums.raspberrypi.com/viewtopic.php?t=252812
-
-## Dressing
-
-- Hiding window title bar: https://extensions.gnome.org/extension/1287/unite/
-- https://www.reddit.com/r/unixporn/comments/l3i7st/comment/gkfhjc4/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button:
-  * Script to change cool-retro-term's colors
-- cool-retro-term can display lolcat stuff
