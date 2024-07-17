@@ -8,3 +8,5 @@ data/reddit/subreddit/
 util/
 *.feather
 .env
+GEMINI.md
+TODO.md
