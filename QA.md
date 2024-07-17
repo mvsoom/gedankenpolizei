@@ -32,9 +32,9 @@ More information can be found in other Markdown files in this repo.
 
 This was done as convenience to sidestep CORS issues during local development. Also, as I don't know anything about front-end web development or `three.js`, it was heavily co-written with AI, and a single file is convenient for that.
 
-## Why encrypted SLOW database?
+## Why is the SLOW database gated?
 
-Prevents legal issues with Redit content redistribution and reduces possibility of abuse. More on this in `SLOW.md`.
+Downloading the SLOW database requires setting `HF_TOKEN_READ` in the `.env` file. This prevents legal issues with Redit content redistribution and reduces possibility of abuse. More on this in `REDDIT.md`.
 
 ## What can it do more?
 
