@@ -14,7 +14,7 @@ import anthropic
 from src import env
 from src.cost import APICosts
 from src.log import error, info, warning
-from src.thoughts import MODEL_NAME, MODEL_TEMPERATURE, TERMINAL_WIDTH, USER_PROMPTFILE
+from src.now import MODEL_NAME, MODEL_TEMPERATURE, TERMINAL_WIDTH, USER_PROMPTFILE
 from src.util import read_prompt_file, replace_variables_in_prompt
 
 # Ensure print always flushes to stdout
