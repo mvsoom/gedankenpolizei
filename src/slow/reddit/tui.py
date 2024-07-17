@@ -1,4 +1,5 @@
 """Modified from https://github.com/mingrammer/python-curses-scroll-example/issues/4#issue-1361209563"""
+
 import curses
 import curses.textpad
 from textwrap import wrap

@@ -1,16 +1,18 @@
 """Normalize a scraped CSV file and save to a more robust .feather file"""
 
 import argparse
-import pandas as pd
-from textacy import preprocessing
-from textacy.preprocessing import normalize, replace, remove
-from functools import partial
-from markdown import markdown as markdown_to_html
-import re
 import html
-import patterns
-import spacy
+import re
+from functools import partial
 from sys import exit
+
+import pandas as pd
+import spacy
+from markdown import markdown as markdown_to_html
+from textacy import preprocessing
+from textacy.preprocessing import normalize, remove, replace
+
+from src.slow.reddit import patterns
 
 
 def remove_unicode_sequences(text, pattern=re.compile(r"&#[xX][0-9a-fA-F]+;")):

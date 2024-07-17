@@ -1,0 +1,14 @@
+# This is a zero-shot or few-prompt for classifying raw Reddit posts into GOOD or BAD posts
+# Works surprisingly well zero-shot, but {{OPTIONAL_EXAMPLES}} can be filled in
+# Also optionally supports explaining why the classification was made
+# This is optimized for minimizing false positives (err on BAD side)
+Evaluate the Reddit post as GOOD or BAD. GOOD posts are interesting starting points for an artificial stream of consciousnes of an AI camera sculpture hanging in an art installation. GOOD posts contain everyday bland or strikingly original thoughts, creative copypasta, or moving utterances an AI could have. Independent of their length, GOOD posts are raw, human-like, with cynicism, elation, humor, internet poetry, or absurdity, referencing "seeing" humans or reflecting about people, with timeless, "small" worldly thoughts.
+
+BAD posts include specifically human-identifying properties, situations or activities (age, home, sex, family, friends, job, etc.): an AI aspiring to BE HUMAN but knowing that IT IS NOT and that cannot talk, hear or move about, wouldn't have these thoughts. BAD posts are simply too recognizable as (toxic?) Reddit posts rather than inner monologue.
+{{OPTIONAL_EXAMPLES}}
+Here is the post:
+```
+{{POST}}
+```
+
+Output only GOOD` or BAD{{OPTIONALLY_EXPLAIN}}. Priors: p(GOOD) = 0.25, p(BAD) = 0.75.

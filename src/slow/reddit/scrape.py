@@ -1,18 +1,18 @@
 """Scrape submissions (posts without the comments) from a subreddit"""
 
 import argparse
-from copy import copy
-import time
-import requests
-from datetime import datetime
-from retrying import retry
-from urllib.parse import urlencode
 import csv
 import os
+import time
 from collections import OrderedDict
+from copy import copy
+from datetime import datetime
 from sys import exit
-import pandas as pd
+from urllib.parse import urlencode
 
+import pandas as pd
+import requests
+from retrying import retry
 
 API = "https://api.pullpush.io/reddit/search/submission/"
 MAXSUBS = 100
@@ -59,6 +59,7 @@ def deleted(text):
 
 
 def write(filename, s):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     file_exists = os.path.exists(filename)
 
     with open(filename, "a", newline="", encoding="utf-8") as csvfile:

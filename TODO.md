@@ -2,11 +2,15 @@
 
 ## TODO
 
+- Test src/slow/reddit: requirements, module recasting
+
+- git LFS for slow.feather.encrypted
+
+- yaml file and .env file
+
 - Search for TODO everywhere
 
-- Search for Claude
-
-- animation of thought walks in embedding space
+- Search for Claude and delete
 
 - FAST.md
 
@@ -19,6 +23,9 @@
 - JURY.md
 
 - GEMINI.md
+
+- Make a README.md
+  * animation of thought walks in embedding space
 
 ### General
 

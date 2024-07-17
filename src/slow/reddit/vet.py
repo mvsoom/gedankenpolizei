@@ -8,10 +8,12 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
+from vertexai.generative_models import GenerationConfig
 
-from autovet import ask_gemini
-from lib import tui
-from makeposts import formatpost
+from src.gemini import GEMINI_FLASH, SAFETY_SETTINGS
+from src.slow.reddit import tui
+from src.slow.reddit.makeposts import formatpost
+from src.util import read_prompt_file
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
 PLUS, MINUS, ENTER = ord("+"), ord("-"), ord("\n")
@@ -25,6 +27,8 @@ SCORE = {
 
 # BIAS = "I am feeling good, happy, fine, neutral."
 BIAS = "I see people."
+
+PROMPT = read_prompt_file("data/prompts/slow/vet.prompt")
 
 
 def weigh_subreddits(pdf, vdf):
@@ -47,6 +51,47 @@ def writeout(vdf, path):
     print(f"Written to {path}")
 
 
+def get_candidates(pdf, vdf):
+    """GOOD candidate posts have not been labeled or vetted yet"""
+    candidates = pdf[pdf["labels"].apply(len) == 0]
+    candidates = pdf[~pdf.index.isin(vdf.index)]
+    return candidates
+
+
+def ask_gemini(post, explain=False, examples=None):
+    query = PROMPT.replace("{{POST}}", post)
+
+    if explain:
+        # Let the LLM finish with the one-sentence justification
+        generation_config = None
+        query = query.replace(
+            "{{OPTIONALLY_EXPLAIN}}", " followed by a one-sentence justification"
+        )
+    else:
+        # Cut the LLM short after GOOD or BAD (single tokens)
+        generation_config = GenerationConfig(max_output_tokens=1)
+        query = query.replace("{{OPTIONALLY_EXPLAIN}}", "")
+
+    if examples:
+        text = "\nHere are some examples of GOOD and BAD posts:\n"
+
+        for label, sample in examples:
+            text += f"```\n{sample['post']}\n``` => {label}\n"
+
+        query = query.replace("{{OPTIONAL_EXAMPLES}}", text)
+    else:
+        query = query.replace("{{OPTIONAL_EXAMPLES}}", "")
+
+    response = GEMINI_FLASH.generate_content(
+        query,
+        generation_config=generation_config,
+        safety_settings=SAFETY_SETTINGS,
+    )
+
+    reply = response.text.strip()
+    return reply
+
+
 def main(args):
     pdf = pd.read_feather(args.postfile)
     try:
@@ -59,12 +104,14 @@ def main(args):
         reference_embeddings = np.stack(rdf["embedding"], dtype="float32")
 
     if args.bias:
-        from makeposts import EMBEDDING_MODEL
+        from src.slow.reddit.makeposts import EMBEDDING_MODEL
 
         model = SentenceTransformer(EMBEDDING_MODEL)
         bias_embedding = model.encode(BIAS, convert_to_tensor=True)
 
-    args.n = len(pdf) if args.n is None else args.n
+    if args.n is None:
+        args.n = len(get_candidates(pdf, vdf))
+
     probs = weigh_subreddits(pdf, vdf)
     embeddings = np.stack(pdf["embedding"], dtype="float32")
 
@@ -89,8 +136,7 @@ def main(args):
                 )
 
         # Choose a post that has not been labeled or vetted yet
-        candidates = candidates[candidates["labels"].apply(len) == 0]
-        candidates = candidates[~candidates.index.isin(vdf.index)]
+        candidates = get_candidates(candidates, vdf)
 
         # If no valid candidate, retry
         if len(candidates) > 0:
@@ -105,7 +151,9 @@ def main(args):
                 return candidates.iloc[best]
         else:
             if tried >= maxtries:
-                raise ValueError(f"Can't find fresh sample after {maxtries} tries")
+                raise ValueError(
+                    f"Can't find fresh sample after {maxtries} tries. Vetting completed?"
+                )
             return sample_post(None, numcandidates, maxtries, tried=tried + 1)
 
     def predict(

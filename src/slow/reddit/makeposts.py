@@ -11,7 +11,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
-import patterns
+from src.slow.reddit import patterns
 
 
 def formatpost(post, symbol="🟦", width=60):

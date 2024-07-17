@@ -1,8 +1,8 @@
-# Notes for SLOW stream
+# Notes for `reddit` module
 
 ## Getting and processing raw posts from Reddit
 
-The SLOW stream provides seeding thoughts for the NOW stream. We get these seeding thoughts from scraping appropriate subreddits. These are listed in `subreddit.list`.
+The SLOW stream provides seeding thoughts for the NOW stream. We get these seeding thoughts from scraping appropriate subreddits. These are listed in `data/reddit/subreddit.list`.
 
 The raw posts also **normalized** to be easier to handle: removing empty posts, providing unique ids, etc. They are also sentencised with NLP to subdivide them into atoms of thought.
 
@@ -12,24 +12,24 @@ Finally, the posts are **embedded** into semantic embedding space.
 
 This pipeline can be activated by running
 ```bash
-./update.sh
+scripts/scrape.sh
 ```
 This takes ~1 day and yields about 1.3m raw posts, of which roughly 350k are unlabeled and are thus candidates for good seed thoughts.
 
 > *Note about legal issues.*
-> Scraping public data isn’t in violation of the Computer Fraud and Abuse Act. Academic research is allowed, which is how this code is framed, but redistributing scraped content is sketchy. Note that the `scrape.py` script does not use the Reddit API. All posts are anonymized and NER is used to ignore posts that could contain further personal information. In fact the whole goal of the processing pipeline is to amass seed thoughts that express any kind of human thought that is not specific human-identifying but rather a general "atom of thought".
+> Scraping public data isn’t in violation of the US Computer Fraud and Abuse Act. Academic research is allowed, which is how this code is framed, but redistributing scraped content is sketchy. Note that the `scrape.py` script does not use the Reddit API. All posts are anonymized and NER is used to ignore posts that could contain further personal information. In fact the whole goal of the processing pipeline is to amass seed thoughts that express any kind of human thought that is not specific human-identifying but rather a general "atom of thought".
 > Nevertheless, the raw data is not redistributed. The final product (see below) *is* redistributed (to make the app work), but encrypted with a key that makes sure only selected people can run the app. A  better way would be the shield the final product behind an API, such that there is control over the access keys, but this is future work.
 > Finally, note that the final NOW output does not echo these scraped posts; it rather builds upon them and transforms them into new thoughts. It is also not used directly to train new LLMs.
 
 ## Vetting posts manually
 
-The 350k candidates are then vetted (ie. quality-controlled) through a manual process to get a feel for the seed quality. This is quite an instructive, though heavily depressing, passtime. You can initiate it by
+The 350k candidates are then vetted (ie. quality-controlled) through a manual process to get a feel for the seed quality. This is quite an instructive, though severely depressing, passtime. You can initiate it by
 ```bash
-python vet.py posts/posts.feather posts/vet.feather
+python -m src.slow.reddit.vet data/reddit/posts.feather data/reddit/vet.feather
 ```
 This presents posts which you can upvote (GOOD seed thought) or downvote (BAD seed thought). You effectively start walking in the embedding space, finding nearby related posts if current post if GOOD, or teleporting if current post is BAD.
 
-More vetting options are availably thru `python vet.py -h`.
+More vetting options are availably thru `python -m src.slow.reddit.vet -h`.
 
 In this way 9k manually vetted posts were obtained, of which roughly 25% were deemed GOOD. This is the validation testset for the next step.
 
@@ -38,7 +38,7 @@ In this way 9k manually vetted posts were obtained, of which roughly 25% were de
 Manually vetting (350k posts ~ 40m tokens) would likely lead to nihilistic depression.
 So we use Gemini Flash to do this automatically:
 ```bash
-python vet.py posts/posts.feather posts/autovet.feather --autovet
+python -m src.slow.reddit.vet data/reddit/posts.feather data/reddit/autovet.feather --autovet
 ```
 This yields ... [TODO]
 Confusion matrix on test set:
