@@ -1,7 +1,6 @@
 """Vet posts manually or automatically"""
 
 import argparse
-import re
 from sys import exit
 from time import time
 
@@ -43,15 +42,17 @@ def weigh_subreddits(pdf, vdf):
 
 def writeout(vdf, path):
     if "score" in vdf:
-        # vdf["score"] = vdf["score"].astype("int")
-        pass
+        vdf["score"] = vdf["score"].astype("int")
     vdf.to_feather(path, compression="zstd")
     print(f"Written to {path}")
 
 
 def main(args):
     pdf = pd.read_feather(args.postfile)
-    vdf = pd.read_feather(args.vetfile)
+    try:
+        vdf = pd.read_feather(args.vetfile)
+    except FileNotFoundError:
+        vdf = pd.DataFrame()
 
     if args.reference:
         rdf = pd.read_feather(args.reference)
@@ -155,27 +156,20 @@ def main(args):
     return 0
 
 
-def extract_score(reply, re=re.compile(r"^\d*\.?\d+")):
-    """Extracts a floating-point number followed by anything"""
-    match = re.match(reply.strip())
-    if match:
-        return float(match.group(0))
-    else:
-        raise ValueError(f"Unable to extract score from `{reply}`")
-
-
 def autovet(args, vdf, sample_post, predict):
     for _ in tqdm(range(args.n)):
         sample = sample_post()
-
         try:
-            reply = predict(sample, explain=False)
-            score = extract_score(reply)
+            prediction = predict(sample, explain=False)
+            if prediction == "GOOD":
+                score = 1
+            elif prediction == "BAD":
+                score = -1
+            else:
+                raise ValueError(f"Unknown prediction `{prediction}`")
         except Exception as e:
-            fp = formatpost(sample["post"])
-            print(f"Error processing ```{fp}```: {e}")
-            score = float("nan")
-            raise e
+            print(f"Error processing `{sample.name}`: {e}")
+            score = 0
 
         vdf.loc[sample.name, "score"] = score
 

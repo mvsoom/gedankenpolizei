@@ -205,7 +205,6 @@ LABEL_PATTERNS = {
             "DPDR",
             "NPD",
             "MDD",
-            "nigger(s)?",
             "jew(s)?",
             "suicide",
             "hitler",

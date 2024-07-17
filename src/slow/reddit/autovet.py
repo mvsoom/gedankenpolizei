@@ -1,6 +1,5 @@
 """Vet posts automatically with few shot Gemini"""
 
-
 import vertexai
 from vertexai.generative_models import (
     GenerationConfig,
@@ -15,7 +14,7 @@ vertexai.init(project=project_id, location="europe-west1")
 
 model = GenerativeModel(model_name="gemini-1.5-flash-001")
 
-safety_settings = {
+SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -32,21 +31,23 @@ Here is the post:
 {{POST}}
 ```
 
-Given the priors `p(GOOD) = 0.25`, `p(BAD) = 1 - p(GOOD) = 0.75`, output a single float representing `p(GOOD|post)` followed by a one-sentence justification.\
+Output only GOOD` or BAD{{OPTIONALLY_EXPLAIN}}. Priors: p(GOOD) = 0.25, p(BAD) = 0.75.\
 """  # ~220 tokens
-# Note: "followed by a one-sentence justification" is crucial for the model to generate output starting with a float
 
 
 def ask_gemini(post, explain=False, examples=None):
-    """Post is a the title + body of a Reddit post where sentences are separated by newlines."""
     query = PROMPT.replace("{{POST}}", post)
 
     if explain:
         # Let the LLM finish with the one-sentence justification
         generation_config = None
+        query = query.replace(
+            "{{OPTIONALLY_EXPLAIN}}", " followed by a one-sentence justification"
+        )
     else:
-        # Cut the LLM short after the float
-        generation_config = GenerationConfig(max_output_tokens=4)
+        # Cut the LLM short after GOOD or BAD (single tokens)
+        generation_config = GenerationConfig(max_output_tokens=1)
+        query = query.replace("{{OPTIONALLY_EXPLAIN}}", "")
 
     if examples:
         text = "\nHere are some examples of GOOD and BAD posts:\n"
@@ -61,9 +62,8 @@ def ask_gemini(post, explain=False, examples=None):
     response = model.generate_content(
         query,
         generation_config=generation_config,
-        safety_settings=safety_settings,
+        safety_settings=SAFETY_SETTINGS,
     )
 
-    reply = response.text
-
+    reply = response.text.strip()
     return reply
