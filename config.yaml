@@ -1,0 +1,38 @@
+# Configuration for tuning and/or shared settings across the system
+log:
+  dir: ./logs
+  level: DEBUG
+  images: true
+
+slow:
+  reddit:
+    hf_repo_id: mvsoom/gedankenpolizei
+    hf_thoughts_file: slow_thoughts.feather
+
+narrate:
+  tile:
+    num_frames: 1
+    size: (320, 240)
+    # Alternate sizes
+    # size: (640, 480)
+    # size: (1024, 1024)
+  model:
+    name: claude-3-haiku-20240307
+    # Alternate models
+    # name: claude-3-opus-20240229
+    # name: claude-3-sonnet-20240229
+    temperature: 0.0
+  system_prompt_file: prompts/narrate/system_prompt_novelty_stopwords
+  novelty_threshold: 20  # Ignore narrations with novelty below this threshold
+  memory:
+    size: 3  # Number of frames to keep in memory (excludes current frame)
+    max_image: 1000 # Maximum number of images to keep in memory (becomes only descriptions otherwise)
+    novelty_threshold: 20  # If negative, retain all frames in memory regardless of novelty
+
+thoughts:
+  model:
+    name: claude-3-opus-20240229
+    temperature: 1.0
+  user_prompt_file: prompts/thoughts/user_prompt_fixed_width
+  terminal_width: 16
+

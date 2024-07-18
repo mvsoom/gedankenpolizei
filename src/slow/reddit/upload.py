@@ -1,6 +1,5 @@
 """Make the seed posts for the SLOW stream from raw posts and vetting information and upload to Hugging Face"""
 
-import argparse
 import os
 from io import BytesIO
 from sys import exit
@@ -9,16 +8,19 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import HfApi
 
+from src.config import ConfigArgumentParser, config
+
 load_dotenv()
 
 HF_API = HfApi()
-HF_REPO_ID = "mvsoom/gedankenpolizei"
-OUTPUTFILE = "slow.feather"
 
 
 def main(args):
     pdf = pd.read_feather(args.postfile)
     vdf = pd.concat([pd.read_feather(vetfile) for vetfile in args.vetfiles])
+
+    repo_id = config()["slow"]["reddit"]["hf_repo_id"]
+    thoughts_file = config()["slow"]["reddit"]["hf_thoughts_file"]
 
     duplicates = vdf.index.duplicated(keep="first")
     print(
@@ -41,7 +43,7 @@ def main(args):
     sdf.rename(columns={"post": "thought"}, inplace=True)
 
     print(
-        f"Uploading {OUTPUTFILE} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
+        f"Uploading {thoughts_file} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
     )
     buffer = BytesIO()
     sdf.to_feather(buffer, compression="zstd")
@@ -52,8 +54,8 @@ def main(args):
 
     HF_API.upload_file(
         path_or_fileobj=buffer,
-        path_in_repo=OUTPUTFILE,
-        repo_id=HF_REPO_ID,
+        path_in_repo=thoughts_file,
+        repo_id=repo_id,
         repo_type="dataset",
         token=HF_TOKEN_WRITE,
     )
@@ -62,7 +64,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = ConfigArgumentParser(description=__doc__)
 
     parser.add_argument("postfile", help="Post .feather file containing posts")
     parser.add_argument("vetfiles", nargs="+", help="One or more vet .feather files")
