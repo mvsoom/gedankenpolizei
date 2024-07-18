@@ -18,7 +18,7 @@ TODO
 
 Trial-and-error, heuristics and also some more principled ideas, such as random walks in embedded space. Credit where credit is due, I was pleasantly surprised at Gemini's usefulness and companionship during this research.
 
-To make `gedankenpolizei` possible, debug-able and operatable, I designed some components which some may find innovative or helpful for their own artistic LLM research.
+To make `gedankenpolizei` possible, debug-able and operatable, I designed some components which some may find innovative or helpful for their own LLM research.
 
 - The concept of three levels of semantic information: SLOW, FAST, NOW; each moving at different speeds in embedded space.
 - A module for Reddit scraping and vetting tools which are reusable and robust. Used for SLOW.
@@ -40,8 +40,8 @@ Downloading the SLOW database requires setting `HF_TOKEN_READ` in the `.env` fil
 
 Everthing is modular and primarily works with pipes, so you can fiddle around. For example:
 
-- Let the AI see your desktop, a video, basically any video `ffmpeg` MJPEG stream instead of the webcam. Just pipe it into the program.
-- Visualize output by piping the output to a backend: fancy `three.js` visuals, beautiful `cool-retro-term` nostalgia, or pipe into `lolcat` for lolz. Or just barebone print to stdout.
+- Let the AI see your desktop or a video instead of the webcam: any video `ffmpeg` MJPEG stream will do, just pipe it into the program from one of the scripts in `./grab`.
+- Visualize output by piping the output to one of the backends in `./emit`: fancy `three.js` visuals, beautiful `cool-retro-term` nostalgia, or pipe into `lolcat` for lolz. Or just barebone print to stdout.
 
 ## Who are you?
 
