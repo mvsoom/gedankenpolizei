@@ -28,6 +28,8 @@ lolcat
 
 TODO
 
+Can change `gemini.location` in `config.yaml` file for faster speed.
+
 ## Additional information
 
 I used Python 3.10.12 with Ubuntu 22.04.4 LTS on a HP EliteBook 850 G5. For the LLM I used Gemini Flash 1.5 with safety turned off and maxed out RPM at 1000.

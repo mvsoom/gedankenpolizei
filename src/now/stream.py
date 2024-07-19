@@ -1,6 +1,7 @@
 import argparse
 import functools
 import json
+import os
 import sys
 import threading
 from collections import deque
@@ -10,17 +11,27 @@ from sys import exit
 from time import time
 
 import anthropic
+import dotenv
 
-from src import env
+from src.config import CONFIG
 from src.cost import APICosts
 from src.log import error, info, warning
-from src.now import MODEL_NAME, MODEL_TEMPERATURE, TERMINAL_WIDTH, USER_PROMPTFILE
 from src.util import read_prompt_file, replace_variables_in_prompt
 
 # Ensure print always flushes to stdout
 print = functools.partial(print, flush=True)
 
-CLIENT = anthropic.Anthropic(api_key=env.ANTHROPIC_API_KEY)
+
+MODEL_NAME = CONFIG("now.model.name")
+MODEL_TEMPERATURE = CONFIG("now.model.temperature")
+TERMINAL_WIDTH = CONFIG("now.terminal_width")
+USER_PROMPTFILE = CONFIG("now.user_prompt_file")
+
+
+dotenv.load_dotenv()
+
+
+CLIENT = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 USER_PROMPT = read_prompt_file(USER_PROMPTFILE)
 

@@ -6,11 +6,13 @@ import traceback
 from pathlib import Path
 from time import ctime, time
 
-import src.env as env
+from src.config import CONFIG
 from src.log.format import MarkdownFormatter, epoch_url, markdown_link
 
 STARTTIME = time()
 
+LOG_LEVEL = CONFIG("log.level")
+LOG_DIR = CONFIG("log.dir")
 
 def setup_verbose():
     VERBOSE = 15
@@ -38,9 +40,9 @@ def get_log_file_path(module_path, log_dir):
 
 def setup_logger():
     logger = logging.getLogger(Path(sys.argv[0]).stem)
-    logger.setLevel(env.LOG_LEVEL)
+    logger.setLevel(LOG_LEVEL)
 
-    log_file_path = get_log_file_path(sys.argv[0], env.LOG_DIR)
+    log_file_path = get_log_file_path(sys.argv[0], LOG_DIR)
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     h = logging.FileHandler(log_file_path, mode="a")
@@ -51,7 +53,7 @@ def setup_logger():
     header = markdown_link(ctime(STARTTIME), epoch_url(STARTTIME))
     h.stream.write(f"# {header}\n")
 
-    logger.debug(f"Environment: {env.glob('*')}")
+    logger.debug(f"Configuration: {CONFIG}")
 
     return logger
 

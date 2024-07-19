@@ -1,6 +1,5 @@
 """Narrate MJPEG stdin input to stdout"""
 
-import argparse
 import functools
 import io
 import json
@@ -11,7 +10,7 @@ from time import sleep, time
 
 from PIL import Image
 
-from src.fast import TILE_NUM_FRAMES, TILE_SIZE
+from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import narrate
 from src.image.frame import format_time, sample_frames, timestamp
 from src.image.tile import concatenate_images_grid
@@ -20,6 +19,8 @@ from src.log import debug, error
 # Ensure print always flushes to stdout
 print = functools.partial(print, flush=True)
 
+TILE_NUM_FRAMES = CONFIG("fast.tile.num_frames")
+TILE_SIZE = CONFIG("fast.tile.size")
 
 RAWFRAMES = []
 EXITCODE = 1
@@ -103,7 +104,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = ConfigArgumentParser(description=__doc__)
     parser.add_argument(
         "--jsonl",
         action="store_true",

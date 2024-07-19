@@ -1,24 +1,13 @@
 
+import os
 import re
 from pprint import pformat
 
+import dotenv
 from anthropic import Anthropic
 
-import src.env as env
+from src.config import CONFIG
 from src.cost import APICosts
-from src.fast import (
-    IMAGE_MAX_SIZE,
-    MAX_TOKENS,
-    MEMORY_MAX_IMAGES,
-    MEMORY_NOVELTY_THRESHOLD,
-    MEMORY_SIZE,
-    MODEL_NAME,
-    MODEL_TEMPERATURE,
-    NOVELTY_THRESHOLD,
-    RESPONSE_TIMEOUT,
-    SYSTEM_PROMPTFILE,
-    TILE_NUM_FRAMES,
-)
 from src.image.frame import encode_image
 from src.log import debug, error, info, verbose
 from src.util import (
@@ -27,8 +16,26 @@ from src.util import (
     replace_variables_in_prompt,
 )
 
-CLIENT = Anthropic(api_key=env.ANTHROPIC_API_KEY)
-SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPTFILE)
+IMAGE_MAX_SIZE = (1024, 1024)  #  Claude API will downsize if larger than this
+MAX_TOKENS = 300  # Max tokens to generate before stopping
+RESPONSE_TIMEOUT = 10  # seconds
+
+
+MEMORY_MAX_IMAGES = CONFIG("fast.memory.max_images")
+MEMORY_NOVELTY_THRESHOLD = CONFIG("fast.memory.novelty_threshold")
+MEMORY_SIZE = CONFIG("fast.memory.size")
+MODEL_NAME = CONFIG("fast.model.name")
+MODEL_TEMPERATURE = CONFIG("fast.model.temperature")
+NOVELTY_THRESHOLD = CONFIG("fast.novelty_threshold")
+SYSTEM_PROMPT_FILE = CONFIG("fast.system_prompt_file")
+TILE_NUM_FRAMES = CONFIG("fast.tile.num_frames")
+
+
+dotenv.load_dotenv()
+
+
+CLIENT = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPT_FILE)
 SYSTEM_PROMPT = replace_variables_in_prompt(
     SYSTEM_PROMPT, {"TILE_NUM_FRAMES": TILE_NUM_FRAMES}
 )

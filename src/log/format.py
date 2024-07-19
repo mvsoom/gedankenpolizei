@@ -4,9 +4,12 @@ from time import time
 
 from dateutil.relativedelta import relativedelta
 
-from src import env
+from src.config import CONFIG
 
-IMAGE_LOG_PATH = Path(env.LOG_DIR) / "images"
+LOG_DIR = CONFIG("log.dir")
+LOG_IMAGES = CONFIG("log.images")
+
+IMAGE_LOG_PATH = Path(LOG_DIR) / "images"
 IMAGE_LOG_PATH.mkdir(parents=True, exist_ok=True)
 
 
@@ -77,7 +80,7 @@ class MarkdownFormatter(logging.Formatter):
 
         # Add images if present
         images = self.get_images(record)
-        if images and env.LOG_IMAGES:
+        if images and LOG_IMAGES:
             message += "  \n"  # Hard break
             lines = [markdown_image(image) + "  " for image in images]
             message += indent_lines(lines)

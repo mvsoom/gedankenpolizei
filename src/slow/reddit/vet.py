@@ -10,6 +10,7 @@ from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
 from vertexai.generative_models import GenerationConfig
 
+from src.config import CONFIG
 from src.gemini import GEMINI_FLASH, SAFETY_SETTINGS
 from src.slow.reddit import tui
 from src.slow.reddit.makeposts import formatpost
@@ -28,7 +29,7 @@ SCORE = {
 # BIAS = "I am feeling good, happy, fine, neutral."
 BIAS = "I see people."
 
-PROMPT = read_prompt_file("data/prompts/slow/vet.prompt")
+PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt"))
 
 
 def weigh_subreddits(pdf, vdf):

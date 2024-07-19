@@ -8,19 +8,18 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import HfApi
 
-from src.config import ConfigArgumentParser, config
+from src.config import CONFIG, ConfigArgumentParser
 
 load_dotenv()
 
 HF_API = HfApi()
+HF_REPO_ID = CONFIG("slow.reddit.hf_repo_id")
+HF_SLOW_THOUGHTS_FILE = CONFIG("slow.reddit.hf_slow_thoughts_file")
 
 
 def main(args):
     pdf = pd.read_feather(args.postfile)
     vdf = pd.concat([pd.read_feather(vetfile) for vetfile in args.vetfiles])
-
-    repo_id = config()["slow"]["reddit"]["hf_repo_id"]
-    thoughts_file = config()["slow"]["reddit"]["hf_thoughts_file"]
 
     duplicates = vdf.index.duplicated(keep="first")
     print(
@@ -43,7 +42,7 @@ def main(args):
     sdf.rename(columns={"post": "thought"}, inplace=True)
 
     print(
-        f"Uploading {thoughts_file} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
+        f"Uploading {HF_SLOW_THOUGHTS_FILE} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
     )
     buffer = BytesIO()
     sdf.to_feather(buffer, compression="zstd")
@@ -54,8 +53,8 @@ def main(args):
 
     HF_API.upload_file(
         path_or_fileobj=buffer,
-        path_in_repo=thoughts_file,
-        repo_id=repo_id,
+        path_in_repo=HF_SLOW_THOUGHTS_FILE,
+        repo_id=HF_REPO_ID,
         repo_type="dataset",
         token=HF_TOKEN_WRITE,
     )
