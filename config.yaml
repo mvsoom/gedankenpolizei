@@ -33,10 +33,43 @@ fast:
 
 
 slow:
+  embed:
+    batch_size: 1
+    model:
+      name: BAAI/bge-m3
+
   reddit:
     vet_prompt: data/prompts/slow/vet.prompt
     hf_repo_id: mvsoom/gedankenpolizei
     hf_slow_thoughts_file: slow_thoughts.feather
+
+  bias:
+    # The `beta` parameter controls the amount of bias in the walk in SLOW space in terms of *relative* gain
+    # Proposal steps in SLOW space are projected onto the hyperplane specified by the `bias_directions`, such that their direction but NOT their length is changed. There are three regimes:
+    # 1. For `beta` -> -infty, all bias is removed from the step
+    # 2. For `beta` ~= 0, bias is amplified according to approx (1 + beta). For example, `beta` = 0.1 amplifies the bias by 10%, `beta` = -0.1 reduces the bias by 10%. `beta` = 0 disables biasing.
+    # 3. For `beta` -> infty, the step direction is completely aligned with the bias direction
+    # (generally a very small effect unless there are 100s of directions)
+    beta: -.inf
+
+    # The `strength` parameter in [0, 1] controls the amount of bias in the walk in SLOW space
+    # A value of 0. means no bias is applied to the step
+    # A value of 1. means that the projections of the step onto the bias directions are enforced to be at least unity, even if they were negative originally
+    strength: 0.
+
+    # Bias directions are relative vectors in SLOW space that are used to bias the direction of the walk in SLOW space
+    # They are computed as `bias_direction = overall_multiplier*multiplier*(embed(to) - embed(from))`
+    # Note: the `*multiplier` parameters can be negative
+    # Note: embeddings are usually normalized to have unit norm, so the `*multipliers` can be used to dominate the step size
+    directions:
+      - from: "neutral"
+        to: "happy"
+        multiplier: 1.0
+      - from: "angry"
+        to: "giggly"
+        multiplier: 1.0
+    
+    overall_multiplier: 1.0  # Overall multiplier for the bias directions
 
 
 now:

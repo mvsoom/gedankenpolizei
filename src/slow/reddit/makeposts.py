@@ -6,11 +6,10 @@ import re
 import textwrap
 from sys import exit
 
-import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
+from src.slow.embed import embed
 from src.slow.reddit import patterns
 
 
@@ -136,31 +135,6 @@ def apply(df, f, show_progress=False):
     return result
 
 
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
-
-def embed(posts, show_progress=False, **encode_kwargs):
-    """Embed posts using sentence-transformers
-
-    Note: models have maximum sequence lengths of 256 to 512 tokens (512 tokens ~ 2000 chars ~ 400 words).
-    Longer maximum sequence length take considerably longer to embed.
-    Texts longer than the maximum sequence length are truncated.
-    The embedder is not sensitive to whitespace or newlines.
-    """
-    model = SentenceTransformer(EMBEDDING_MODEL)
-    verbose("Model:", EMBEDDING_MODEL, f"(max_seq_length={model.max_seq_length})")
-
-    sentences = posts.values
-    embedding = model.encode(
-        sentences,
-        show_progress_bar=show_progress,
-        batch_size=50,
-        **encode_kwargs,
-    )  # (len(posts), <embedding dimension>)
-
-    return [np.array(row) for row in embedding]
-
-
 def write(df, args):
     df.reset_index(inplace=True)
     df.drop_duplicates(subset="id", inplace=True, keep="last")
@@ -191,7 +165,7 @@ def main(args):
     df["labels"] = apply(df["post"], label, show_progress=args.verbose)
 
     verbose("Embedding posts")
-    df["embedding"] = embed(df["post"], show_progress=args.verbose)
+    df["embedding"] = apply(df["post"], embed, show_progress=args.verbose)
 
     newrows = len(df)
     newrows = len(df)
