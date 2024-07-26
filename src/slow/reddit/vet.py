@@ -1,17 +1,17 @@
 """Vet posts manually or automatically"""
 
-import argparse
 from sys import exit
 from time import time
 
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import util
 from tqdm import tqdm
 from vertexai.generative_models import GenerationConfig
 
-from src.config import CONFIG
+from src.config import CONFIG, ConfigArgumentParser
 from src.gemini import GEMINI_FLASH, SAFETY_SETTINGS
+from src.slow.embed import embed
 from src.slow.reddit import tui
 from src.slow.reddit.makeposts import formatpost
 from src.util import read_prompt_file
@@ -105,10 +105,7 @@ def main(args):
         reference_embeddings = np.stack(rdf["embedding"], dtype="float32")
 
     if args.bias:
-        from src.slow.reddit.makeposts import EMBEDDING_MODEL
-
-        model = SentenceTransformer(EMBEDDING_MODEL)
-        bias_embedding = model.encode(BIAS, convert_to_tensor=True)
+        bias_embedding = embed(args.bias)
 
     if args.n is None:
         args.n = len(get_candidates(pdf, vdf))
@@ -189,7 +186,7 @@ def main(args):
                 if num_good_examples == 0 and num_bad_examples == 0:
                     break
         else:
-            # Zero-shit prompting
+            # Zero-shot prompting
             examples = None
 
         return ask_gemini(sample["post"], explain=explain, examples=examples)
@@ -265,7 +262,7 @@ def vet(args, vdf, sample_post, predict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__, epilog=INSTRUCTIONS)
+    parser = ConfigArgumentParser(description=__doc__, epilog=INSTRUCTIONS)
 
     parser.add_argument("postfile", help="Post .feather file containing posts to vet")
     parser.add_argument("vetfile", help="Output vet .feather file to append to")

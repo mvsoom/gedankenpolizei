@@ -1,4 +1,4 @@
-"""Embedding arithmetic"""
+"""Embedding algebra"""
 
 import sys
 
@@ -11,6 +11,11 @@ from src.config import CONFIG
 
 NAME = CONFIG("slow.embed.model.name")
 MODEL = SentenceTransformer(NAME)
+DIMENSION = MODEL.get_sentence_embedding_dimension()
+
+
+def zero():
+    return np.zeros(DIMENSION)
 
 
 def tokenize_last(text, truncation_length):
@@ -30,7 +35,7 @@ def embed(text, truncation_length=MODEL.max_seq_length):
 
     Note: we don't use the SentenceTransformer.encode() interface for two reasons:
         * It doesn't support truncation to the last part of the text
-        * It's so much slower on my CPU for some reason
+        * It's so much slower on my CPU for some reason. Batching also makes much less sense for CPU
     """
     is_batch = isinstance(text, list)
 
@@ -44,22 +49,30 @@ def embed(text, truncation_length=MODEL.max_seq_length):
     return embedding.numpy()
 
 
-def compute_projection_matrix(list_of_vectors):
-    """Compute the projection matrix from a list of vectors"""
-    if not list_of_vectors:
-        d = MODEL.get_sentence_embedding_dimension()
-        zero = np.zeros((d, d))
-        return zero
-
-    B = np.stack(list_of_vectors, axis=-1)  # (embedding_dimension, num_vectors)
-    return B @ np.linalg.pinv(B)
+def bias_coefficients(c, intensity):
+    assert 0.0 <= intensity <= 1.0
+    return (1 - intensity) * c + intensity * np.maximum(1, c)
 
 
-def bias_step(step, beta, bias_projection, beta_limit=30.0):
-    if beta < beta_limit:
-        direction = step + (np.exp(beta) - 1.0) * (bias_projection @ step)
-    else:
-        # Manually implement the mathematical limit beta -> +infty
-        direction = bias_projection @ step
+def bias_step(step, bias_matrix, bias_projector, intensity):
+    """Apply a bias to a step in the embedding space by changing its direction while retaining its norm
 
-    return norm(step) * (direction / norm(direction))
+    Here step is the direction vector to be biased (nudged) towards the bias_matrix B, which is a matrix holding the bias directions as columns
+    The bias_projector B^+ is simply the pseudo-inverse of B
+    The intensity parameter controls the strength of the bias, with 0 being no bias and 1 being full bias, amounting to growing the projections of step onto B to be at least of size 1
+    """
+    # Coordinates of the projected step in the bias hyperplane
+    c = bias_projector @ step
+
+    projected = bias_matrix @ c
+    orthogonal = step - projected
+    # step == projected + orthogonal
+
+    biased_projection = bias_matrix @ bias_coefficients(c, intensity)
+    biased_step = biased_projection + orthogonal
+    # step != biased_projection + orthogonal unless intensity == 0
+
+    # biased_projection can have arbitrary size, so we renormalize to step length
+    biased_step = norm(step) * biased_step / norm(biased_step)
+
+    return biased_step

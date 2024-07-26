@@ -1,6 +1,5 @@
 """Make labeled and embedded posts from normalized submissions"""
 
-import argparse
 import os
 import re
 import textwrap
@@ -9,6 +8,7 @@ from sys import exit
 import pandas as pd
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
+from src.config import ConfigArgumentParser
 from src.slow.embed import embed
 from src.slow.reddit import patterns
 
@@ -189,7 +189,7 @@ def main(args):
 verbose = print
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = ConfigArgumentParser(description=__doc__)
 
     parser.add_argument(
         "inputfile",

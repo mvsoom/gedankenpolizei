@@ -33,7 +33,7 @@ def get_log_file_path(module_path, log_dir):
     common_path = os.path.commonpath([module_path, log_dir])  # Not available in pathlib
     relative_module_path = os.path.relpath(module_path, common_path)
     new_path = os.path.join(log_dir, relative_module_path)
-    new_path = os.path.splitext(new_path)[0] + ".logmd"
+    new_path = os.path.splitext(new_path)[0] + ".md"
 
     return Path(new_path)
 
