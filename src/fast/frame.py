@@ -1,151 +1,178 @@
 
-import os
-import re
-from pprint import pformat
+"""Narrate frames"""
 
-import dotenv
-from anthropic import Anthropic
+import json
+from io import BytesIO
+from time import time
+
+from PIL import Image
+from vertexai.generative_models import Content, Part
+from vertexai.generative_models import Image as GeminiImage
 
 from src.config import CONFIG
-from src.cost import APICosts
-from src.image.frame import encode_image
-from src.log import debug, error, info, verbose
-from src.util import (
-    mask_base64_messages,
+from src.gemini import (
+    COST_PER_IMAGE,
+    COST_PER_INPUT_CHAR,
+    COST_PER_OUTPUT_CHAR,
+    Costs,
+    gemini,
     read_prompt_file,
-    replace_variables_in_prompt,
+)
+from src.log import debug, info
+
+SYSTEM_PROMPT = read_prompt_file(CONFIG("fast.model.system_prompt_file"))
+TEMPERATURE = CONFIG("fast.model.temperature")
+
+MODEL = gemini(
+    generation_config={
+        "temperature": TEMPERATURE,
+        "response_mime_type": "application/json",
+    },
+    system_instruction=SYSTEM_PROMPT,
 )
 
-IMAGE_MAX_SIZE = (1024, 1024)  #  Claude API will downsize if larger than this
-MAX_TOKENS = 300  # Max tokens to generate before stopping
-RESPONSE_TIMEOUT = 10  # seconds
+COSTS = Costs()
 
 
-MEMORY_MAX_IMAGES = CONFIG("fast.memory.max_images")
-MEMORY_NOVELTY_THRESHOLD = CONFIG("fast.memory.novelty_threshold")
-MEMORY_SIZE = CONFIG("fast.memory.size")
-MODEL_NAME = CONFIG("fast.model.name")
-MODEL_TEMPERATURE = CONFIG("fast.model.temperature")
-NOVELTY_THRESHOLD = CONFIG("fast.novelty_threshold")
-SYSTEM_PROMPT_FILE = CONFIG("fast.system_prompt_file")
-TILE_NUM_FRAMES = CONFIG("fast.tile.num_frames")
+class Frame:  # Cannot subclass PIL.Image.Image directly, so wrap it awkwardly
+    def __init__(self, rawjpeg, max_size=None, timestamp=None):
+        self.timestamp = timestamp if timestamp else time()
+        self.image = Image.open(BytesIO(rawjpeg))
+
+        if max_size:
+            if self.image.size[0] > max_size[0] or self.image.size[1] > max_size[1]:
+                self.thumbnail(max_size)
+
+    def save(self, path):
+        self.image.save(path)
+
+    def thumbnail(self, size):
+        """Downscale to `size` in place"""
+        self.image.thumbnail(size, Image.Resampling.LANCZOS)
+
+    def downsize(self, factor):
+        """Downsize by `factor` in place"""
+        assert factor <= 1.0
+        new_size = [int(x * factor) for x in self.image.size]
+        self.thumbnail(new_size)
+
+    def jpeg(self):
+        with BytesIO() as f:
+            self.image.save(f, "JPEG")
+            return f.getvalue()
+
+    def gemini_image(self):
+        return GeminiImage.from_bytes(self.jpeg())
+
+    def caption(self, t=None):
+        dt = (t or time()) - self.timestamp
+        caption = f"({dt:.1f} sec ago)"
+        return caption
+
+    def prompt(self, t=None):
+        return [
+            Part.from_image(self.gemini_image()),
+            Part.from_text(self.caption(t)),
+        ]
+
+    def cost(self):
+        """Cost of this frame in $ according to https://cloud.google.com/vertex-ai/generative-ai/pricing#gemini-models"""
+        return COST_PER_IMAGE + COST_PER_INPUT_CHAR * len(self.caption(None))
 
 
-dotenv.load_dotenv()
+def _flatten(iteratable):
+    return [item for sublist in iteratable for item in sublist]
 
 
-CLIENT = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-SYSTEM_PROMPT = read_prompt_file(SYSTEM_PROMPT_FILE)
-SYSTEM_PROMPT = replace_variables_in_prompt(
-    SYSTEM_PROMPT, {"TILE_NUM_FRAMES": TILE_NUM_FRAMES}
-)
+class Memory:
+    def __init__(self, config):
+        self.max_size = config("fast.memory.max_size")
+        self.scaling = config("fast.memory.scaling")
+        self.memory = []
 
-MESSAGES = []
-APICOSTS = APICosts(MODEL_NAME)
+    def remember(self, frame, output):
+        if self.scaling != 1.0:
+            self.downsize_frames()
+
+        # TODO: withholding the narrations of the memories on the chat prompt avoids the model getting stuck into a repetitive loop and appears to works equally well, so for now we only output novelties
+        reply = json.dumps(
+            {
+                "novelty": output["novelty"],
+            }
+        )  # output["reply"]
+
+        self.memory.append((frame, reply))
+
+        if len(self.memory) > self.max_size:
+            self.memory.pop(0)
+
+    def downsize_frames(self):
+        for frame, _ in self.memory:
+            frame.downsize(self.scaling)
+
+    def chat_history(self, t=None):
+        return _flatten(
+            [
+                Content(
+                    parts=frame.prompt(t),
+                    role="user",
+                ),
+                Content(
+                    parts=[Part.from_text(reply)],
+                    role="model",
+                ),
+            ]
+            for (frame, reply) in self.memory
+        )
+
+    def log(self, level=debug):
+        try:
+            frames, replies = zip(*self.memory)
+            level("\n".join(("Memory contents:",) + replies), extra={"images": frames})
+        except ValueError:
+            level("Memory contents: empty")
+
+    def cost(self):
+        return sum(
+            frame.cost() + COST_PER_INPUT_CHAR * len(reply)
+            for frame, reply in self.memory
+        )
 
 
-RESPONSE_PATTERN = r"<narration novelty=(\d{1,3})>(.*?)</narration>"
+def parse_reply(reply):
+    output = json.loads(reply.text)
+
+    allowed_keys = {"novelty", "narration"}
+
+    if "novelty" not in output:
+        raise KeyError(f"Reply is missing `novelty` key: {output}")
+    if "narration" not in output:
+        output["narration"] = None
+
+    unexpected_keys = set(output.keys()) - allowed_keys
+    if unexpected_keys:
+        raise KeyError(f"Reply contains unexpected keys: {unexpected_keys}")
+
+    output["reply"] = reply.text
+
+    return output
 
 
-def parse_response(response, parser=re.compile(RESPONSE_PATTERN)):
-    """Parse the response from the API
+def narrate(past, now):
+    """Narrate the `now` frame conditioned on the `past` outputs of this function"""
+    # Setup a multi-turn chat session with JSON replies
+    chat_session = MODEL.start_chat(history=past.chat_history(time()))
+    prompt = now.prompt()
 
-    An example `response`is:
-    ```
-    <narration novelty=40>He said "Hi!" & went away.</narration>
-    ```
-    Note that this is not true XML, as the `novely` attribute is not quoted and the text content is not escaped. This is in line with the Anthropic Cookbook exampe (multimodal/reading_charts_graphs_powerpoints.ipynb) and indeed Claude does not escape the text content itself. So we use simple RegEx to parse the response.
-    """
-    match = parser.match(response)
-    if match:
-        novelty = int(match.group(1))
-        narration = match.group(2).strip()
-        d = {"novelty": novelty, "narration": narration}
-        return d
-    else:
-        return None
+    debug("Sending message")
+    reply = chat_session.send_message(prompt)
+    debug(f"Reply:\n{reply}")
 
+    # Log costs
+    past_cost = past.cost()
+    now_cost = now.cost() + COST_PER_OUTPUT_CHAR * len(reply.text)
+    COSTS.ingest(past_cost + now_cost)
+    COSTS.log_current_costs(info)
 
-def narrate(tile, start, end):
-    global MESSAGES, APICOSTS
-
-    # prefill = f'<narration i="{i}" startTime="{start}" endTime="{end}">'
-
-    prefill = "<narration novelty="
-    encoded_jpeg = encode_image(tile, max_size=IMAGE_MAX_SIZE)
-
-    MESSAGES = MESSAGES + [
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/jpeg",
-                        "data": encoded_jpeg,
-                    },
-                }
-            ],
-        },
-        {"role": "assistant", "content": [{"type": "text", "text": prefill}]},
-    ]
-
-    debug(
-        f"Sending {len(MESSAGES)} messages:\n{pformat(mask_base64_messages(MESSAGES), width=40)}"
-    )
-
-    verbose(f"Sending {len(MESSAGES)} messages")
-
-    response = CLIENT.messages.create(
-        model=MODEL_NAME,
-        max_tokens=MAX_TOKENS,
-        temperature=MODEL_TEMPERATURE,
-        system=SYSTEM_PROMPT,
-        messages=MESSAGES,
-        stop_sequences=["</narration>"],
-        timeout=RESPONSE_TIMEOUT,
-    )
-
-    APICOSTS.ingest(response)
-    APICOSTS.log_current_costs(verbose)
-
-    narration = prefill + response.content[0].text + "</narration>"
-
-    data = parse_response(narration)
-    novelty = data["novelty"]
-    text = data["narration"]
-
-    # Sometimes happens
-    if (novelty > NOVELTY_THRESHOLD) and (not text):
-        error("Empty text despite sufficient novelty")
-
-    if novelty > NOVELTY_THRESHOLD:
-        info(f"[{novelty}] {text}", extra={"image": tile})
-    else:
-        verbose(f"[{novelty}] {text}", extra={"image": tile})
-
-    # Insert the answer into the messages
-    last = MESSAGES[-1]
-    assert last["role"] == "assistant"
-    last["content"][0]["text"] = narration
-
-    # If not novel enough, forget the current interaction
-    if not (novelty > MEMORY_NOVELTY_THRESHOLD):
-        MESSAGES = MESSAGES[:-2]
-
-    # Limit the number of messages in memory
-    max_messages = 2 * MEMORY_SIZE
-    MESSAGES = MESSAGES[-max_messages:] if max_messages else []
-
-    # Limit the number of images in memory
-    running_count = MEMORY_MAX_IMAGES
-    for message in reversed(MESSAGES):
-        if message["role"] == "user":
-            running_count -= 1
-            if running_count < 0:
-                message["content"] = [
-                    {"type": "text", "text": "<image>"}
-                ]  # FIXME: add time stamp like "3 seconds ago"
-
-    return text if novelty > NOVELTY_THRESHOLD else ""
+    output = parse_reply(reply)
+    return output

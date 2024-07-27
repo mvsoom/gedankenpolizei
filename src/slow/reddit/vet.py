@@ -10,11 +10,10 @@ from tqdm import tqdm
 from vertexai.generative_models import GenerationConfig
 
 from src.config import CONFIG, ConfigArgumentParser
-from src.gemini import GEMINI_FLASH, SAFETY_SETTINGS
+from src.gemini import gemini, read_prompt_file
 from src.slow.embed import embed
 from src.slow.reddit import tui
 from src.slow.reddit.makeposts import formatpost
-from src.util import read_prompt_file
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
 PLUS, MINUS, ENTER = ord("+"), ord("-"), ord("\n")
@@ -30,6 +29,8 @@ SCORE = {
 BIAS = "I see people."
 
 PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt"))
+
+MODEL = gemini()
 
 
 def weigh_subreddits(pdf, vdf):
@@ -83,10 +84,9 @@ def ask_gemini(post, explain=False, examples=None):
     else:
         query = query.replace("{{OPTIONAL_EXAMPLES}}", "")
 
-    response = GEMINI_FLASH.generate_content(
+    response = MODEL.generate_content(
         query,
         generation_config=generation_config,
-        safety_settings=SAFETY_SETTINGS,
     )
 
     reply = response.text.strip()

@@ -15,8 +15,8 @@ import dotenv
 
 from src.config import CONFIG
 from src.cost import APICosts
+from src.gemini import read_prompt_file, replace_variables_in_prompt
 from src.log import error, info, warning
-from src.util import read_prompt_file, replace_variables_in_prompt
 
 # Ensure print always flushes to stdout
 print = functools.partial(print, flush=True)

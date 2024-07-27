@@ -1,34 +1,30 @@
 """Narrate MJPEG stdin input to stdout"""
 
 import functools
-import io
 import json
 import sys
 import threading
 from threading import Lock
-from time import sleep, time
-
-from PIL import Image
+from time import sleep
 
 from src.config import CONFIG, ConfigArgumentParser
-from src.fast.frame import narrate
-from src.image.frame import format_time, sample_frames, timestamp
-from src.image.tile import concatenate_images_grid
-from src.log import debug, error
+from src.fast.frame import Frame, Memory, narrate
+from src.log import debug, error, info, verbose
 
 # Ensure print always flushes to stdout
 print = functools.partial(print, flush=True)
 
-TILE_NUM_FRAMES = CONFIG("fast.tile.num_frames")
-TILE_SIZE = CONFIG("fast.tile.size")
+MAX_SIZE = CONFIG("fast.max_size")
+NOVELTY_THRESHOLD = CONFIG("fast.novelty_threshold")
 
-RAWFRAMES = []
+LASTJPEG = None
 EXITCODE = 1
 LOCK = Lock()
 
 
 def findjpeg(buffer):
     # Find the first complete JPEG image in the buffer
+    # TODO: can also use Stream.readuntil() together with aioconsole package (https://docs.python.org/3/library/asyncio-stream.html#asyncio.StreamReader.readuntil)
     i = buffer.find(b"\xff\xd9")
     if i != -1:
         i += 2
@@ -38,6 +34,8 @@ def findjpeg(buffer):
 def stream():
     buffer = bytearray()
     chunksize = 4096
+
+    global LASTJPEG
 
     while True:
         data = sys.stdin.buffer.read(chunksize)
@@ -52,7 +50,14 @@ def stream():
             chunksize = (chunksize + n) // 2
 
             with LOCK:
-                RAWFRAMES.append((time(), jpeg))
+                LASTJPEG = jpeg.copy()
+
+
+def writeout(output, as_jsonl):
+    if as_jsonl:
+        print(json.dumps(output))
+    else:
+        print(output["narration"])
 
 
 def main(args):
@@ -60,45 +65,41 @@ def main(args):
     streaming_thread.daemon = True
     streaming_thread.start()
 
-    global RAWFRAMES
+    past = Memory(CONFIG)
+
+    global LASTJPEG
 
     while streaming_thread.is_alive():
-        if len(RAWFRAMES) < TILE_NUM_FRAMES:
+        if not LASTJPEG:
             sleep(0.01)
             continue
 
         with LOCK:
-            ts, rawframes = zip(*RAWFRAMES)
-            RAWFRAMES.clear()
+            lastjpeg = LASTJPEG
+            LASTJPEG = None
 
-        ts, rawframes = sample_frames(ts, rawframes, TILE_NUM_FRAMES)
+        # Narrate the last JPEG frame (`now`)
+        now = Frame(lastjpeg, MAX_SIZE)
 
-        frames = [Image.open(io.BytesIO(rawframe)) for rawframe in rawframes]
-
-        for t, frame in zip(ts, frames):
-            timestamp(t, frame)
-
-        tile = concatenate_images_grid(frames, 0, TILE_SIZE)
-
-        start = format_time(ts[0])
-        end = format_time(ts[-1])
-
-        # FIXME
         try:
-            narration = narrate(tile, start, end)
-
-            # Replace all newlines with spaces and trim
-            narration = narration.replace("\n", " ").strip()
-            if len(narration) > 0:
-                if not args.jsonl:
-                    print(narration, flush=True)
-                else:
-                    output = {"t": time(), "text": narration}
-                    print(json.dumps(output), flush=True)
-
+            output = narrate(past, now)
         except Exception as e:
-            error(f"Error narrating: {e}")
-            raise e
+            error(f"Exception during narrate: {e}", exc_info=True)
+            continue
+
+        # Write out if novel enough and log output
+        past.log(verbose)
+
+        def logreply(level):
+            level(f"Narration: {output['reply']}", extra={"image": now})
+
+        if output["novelty"] < NOVELTY_THRESHOLD:
+            logreply(verbose)
+        else:
+            if output["narration"]:
+                writeout(output, args.jsonl)
+            past.remember(now, output)
+            logreply(info)
 
     return EXITCODE
 
