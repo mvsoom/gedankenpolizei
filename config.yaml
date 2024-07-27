@@ -21,7 +21,7 @@ fast:
 
   memory:
     # Number of frames to keep in memory (excludes current `now` frame)
-    max_size: 3
+    max_size: 4
 
     # Downscale the (-i)th frame by (scaling**i)
     # Note that Gemini does not charge more for larger images, so this is only useful for speeding up processing

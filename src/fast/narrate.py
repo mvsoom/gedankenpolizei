@@ -53,9 +53,24 @@ def stream():
                 LASTJPEG = jpeg.copy()
 
 
-def writeout(output, as_jsonl):
-    if as_jsonl:
-        print(json.dumps(output))
+def valid_narration(past, output):
+    current_narration = output["narration"]
+    if not current_narration:
+        return False
+
+    last_narration = past.last_narration()
+    if not last_narration:
+        return True
+
+    return current_narration.lower() != last_narration.lower()
+
+
+def writeout(output, frame, args):
+    if args.jsonl:
+        if args.output_frame:
+            print(json.dumps({"frame": frame, **output}))
+        else:
+            print(json.dumps(output))
     else:
         print(output["narration"])
 
@@ -87,19 +102,24 @@ def main(args):
             error(f"Exception during narrate: {e}", exc_info=True)
             continue
 
-        # Write out if novel enough and log output
-        past.log(verbose)
-
+        # Write out if the narration is novel enough and log output
+        # Note: repeated narrations do not break the system in any way, but filtering them out saves on costs and latency
+        # In addition, this prevents clogging the memory with very similar frames
         def logreply(level):
-            level(f"Narration: {output['reply']}", extra={"image": now})
+            level(f"Narration: {output}", extra={"image": now})
 
-        if output["novelty"] < NOVELTY_THRESHOLD:
-            logreply(verbose)
-        else:
-            if output["narration"]:
-                writeout(output, args.jsonl)
+        conditions = [
+            output["novelty"] >= NOVELTY_THRESHOLD,
+            valid_narration(past, output),
+        ]
+
+        if all(conditions):
+            writeout(output, now, args)
+            past.log(verbose)
             past.remember(now, output)
             logreply(info)
+        else:
+            logreply(verbose)
 
     return EXITCODE
 
@@ -111,8 +131,15 @@ if __name__ == "__main__":
         action="store_true",
         help="Output narrations with metadata in JSONL format(default: %(default)s)",
     )
+    parser.add_argument(
+        "--output-frame",
+        action="store_true",
+        help="Output last frame together with narration (requires --jsonl, default: %(default)s)",
+    )
 
     args = parser.parse_args()
+    if args.output_frame and not args.jsonl:
+        raise ValueError("--output-frame requires --jsonl")
 
     debug(f"Running main({args})")
 
