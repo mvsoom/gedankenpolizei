@@ -6,19 +6,14 @@ from io import BytesIO
 from time import time
 
 from PIL import Image
-from vertexai.generative_models import Content, Part
 from vertexai.generative_models import Image as GeminiImage
 
 from src.config import CONFIG
 from src.gemini import (
-    COST_PER_IMAGE,
-    COST_PER_INPUT_CHAR,
-    COST_PER_OUTPUT_CHAR,
-    Costs,
     gemini,
     read_prompt_file,
 )
-from src.log import debug, info
+from src.log import debug
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("fast.model.system_prompt_file"))
 TEMPERATURE = CONFIG("fast.model.temperature")
@@ -30,8 +25,6 @@ MODEL = gemini(
     },
     system_instruction=SYSTEM_PROMPT,
 )
-
-COSTS = Costs()
 
 
 class Frame:  # Cannot subclass PIL.Image.Image directly, so wrap it awkwardly
@@ -64,79 +57,58 @@ class Frame:  # Cannot subclass PIL.Image.Image directly, so wrap it awkwardly
     def gemini_image(self):
         return GeminiImage.from_bytes(self.jpeg())
 
-    def caption(self, t=None):
+    def precaption(self, t=None):
         dt = (t or time()) - self.timestamp
-        caption = f"({dt:.1f} sec ago)"
+        caption = f"{dt:.1f} sec ago:"
         return caption
 
     def prompt(self, t=None):
-        return [
-            Part.from_image(self.gemini_image()),
-            Part.from_text(self.caption(t)),
-        ]
-
-    def cost(self):
-        """Cost of this frame in $ according to https://cloud.google.com/vertex-ai/generative-ai/pricing#gemini-models"""
-        return COST_PER_IMAGE + COST_PER_INPUT_CHAR * len(self.caption(None))
+        return [self.precaption(t), self.gemini_image()]
 
 
-def _flatten(iteratable):
-    return [item for sublist in iteratable for item in sublist]
+def join(prompts, sep=None):
+    def iter():
+        for prompt in prompts:
+            for part in prompt:
+                yield part
+            if sep:
+                yield sep
+
+    return list(iter())[:-1]
 
 
 class Memory:
     def __init__(self, config):
         self.max_size = config("fast.memory.max_size")
         self.scaling = config("fast.memory.scaling")
-        self.memory = []
+        self.frames = []
+        self.outputs = []
 
     def remember(self, frame, output):
         if self.scaling != 1.0:
             self.downsize_frames()
 
-        # TODO: withholding the narrations of the memories on the chat prompt avoids the model getting stuck into a repetitive loop and appears to works equally well, so for now we only output novelties
-        reply = json.dumps(
-            {
-                "novelty": output["novelty"],
-            }
-        )  # output["reply"]
+        self.frames.append(frame)
+        self.outputs.append(output)
 
-        self.memory.append((frame, reply))
+        if len(self.frames) > self.max_size:
+            self.frames.pop(0)
+            self.outputs.pop(0)
 
-        if len(self.memory) > self.max_size:
-            self.memory.pop(0)
+    def last_narration(self):
+        if self.outputs:
+            return self.outputs[-1]["narration"]
+        return None
 
     def downsize_frames(self):
-        for frame, _ in self.memory:
+        for frame in self.frames:
             frame.downsize(self.scaling)
 
-    def chat_history(self, t=None):
-        return _flatten(
-            [
-                Content(
-                    parts=frame.prompt(t),
-                    role="user",
-                ),
-                Content(
-                    parts=[Part.from_text(reply)],
-                    role="model",
-                ),
-            ]
-            for (frame, reply) in self.memory
-        )
+    def prompts(self, t=None):
+        return [frame.prompt(t) for frame in self.frames]
 
     def log(self, level=debug):
-        try:
-            frames, replies = zip(*self.memory)
-            level("\n".join(("Memory contents:",) + replies), extra={"images": frames})
-        except ValueError:
-            level("Memory contents: empty")
-
-    def cost(self):
-        return sum(
-            frame.cost() + COST_PER_INPUT_CHAR * len(reply)
-            for frame, reply in self.memory
-        )
+        level("Memory contents", extra={"images": self.frames})
 
 
 def parse_reply(reply):
@@ -153,26 +125,15 @@ def parse_reply(reply):
     if unexpected_keys:
         raise KeyError(f"Reply contains unexpected keys: {unexpected_keys}")
 
-    output["reply"] = reply.text
-
     return output
 
 
 def narrate(past, now):
     """Narrate the `now` frame conditioned on the `past` outputs of this function"""
-    # Setup a multi-turn chat session with JSON replies
-    chat_session = MODEL.start_chat(history=past.chat_history(time()))
-    prompt = now.prompt()
-
-    debug("Sending message")
-    reply = chat_session.send_message(prompt)
+    prompt = join(past.prompts() + [now.prompt()], sep="\n")
+    debug(f"Sending message:\n{prompt}")
+    reply = MODEL.generate_content(prompt)
     debug(f"Reply:\n{reply}")
-
-    # Log costs
-    past_cost = past.cost()
-    now_cost = now.cost() + COST_PER_OUTPUT_CHAR * len(reply.text)
-    COSTS.ingest(past_cost + now_cost)
-    COSTS.log_current_costs(info)
 
     output = parse_reply(reply)
     return output
