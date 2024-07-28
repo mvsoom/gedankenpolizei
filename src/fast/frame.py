@@ -1,6 +1,7 @@
 
 """Narrate frames"""
 
+import base64
 import json
 from io import BytesIO
 from time import time
@@ -17,8 +18,10 @@ from src.log import debug
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("fast.model.system_prompt_file"))
 TEMPERATURE = CONFIG("fast.model.temperature")
+MODEL_NAME = CONFIG("fast.model.name")
 
 MODEL = gemini(
+    MODEL_NAME,
     generation_config={
         "temperature": TEMPERATURE,
         "response_mime_type": "application/json",
@@ -28,8 +31,8 @@ MODEL = gemini(
 
 
 class Frame:  # Cannot subclass PIL.Image.Image directly, so wrap it awkwardly
-    def __init__(self, rawjpeg, max_size=None, timestamp=None):
-        self.timestamp = timestamp if timestamp else time()
+    def __init__(self, rawjpeg, max_size=None):
+        self.timestamp = time()
         self.image = Image.open(BytesIO(rawjpeg))
 
         if max_size:
@@ -53,6 +56,9 @@ class Frame:  # Cannot subclass PIL.Image.Image directly, so wrap it awkwardly
         with BytesIO() as f:
             self.image.save(f, "JPEG")
             return f.getvalue()
+
+    def encode64(self):
+        return base64.b64encode(self.jpeg()).decode("utf-8")
 
     def gemini_image(self):
         return GeminiImage.from_bytes(self.jpeg())

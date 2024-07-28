@@ -1,3 +1,5 @@
+"""Gemini API wrapper for Vertex AI"""
+
 import os
 from time import time
 
@@ -36,20 +38,21 @@ SAFETY_SETTINGS = {
 vertexai.init(project=project_id, location=LOCATION)
 
 
-def gemini(**kwargs):
+def gemini(model_shorthand, **kwargs):
+    model_name = CONFIG["gemini"]["model"][model_shorthand]["name"]
     config = dict(
-        model_name=MODEL_FLASH_NAME,
+        model_name=model_name,
         safety_settings=SAFETY_SETTINGS,
     )
     config.update(kwargs)
     model = GenerativeModel(**config)
     # TODO: attach COST_PER_* costs to the model object rather than to this module
-    model.name = MODEL_FLASH_NAME
+    model.name = model_name
     return model
 
 
 def read_prompt_file(filename):
-    """Note that for Gemini whitespace are not billed"""
+    """Note that for Gemini on Vertex AI whitespace is not billed"""
     with open(filename, "r") as file:
         lines = file.readlines()
     text = ""
@@ -59,15 +62,45 @@ def read_prompt_file(filename):
     return text
 
 
-def replace_variables_in_prompt(prompt, variables_dict):
-    """Replace {{VARIABLE_NAME}} placeholders in the prompt with actual values from the variables dictionary."""
-    for var_name, var_value in variables_dict.items():
-        prompt = prompt.replace("{{" + var_name + "}}", str(var_value))
+def replace_variables(prompt, **variables):
+    """Replace {{VARIABLE_NAME}} placeholders in the prompt with actual values from the variables dictionary"""
+    deferred = []
+    for name, value in variables.items():
+        placeholder = "{{" + name + "}}"
+        if isinstance(value, str):
+            prompt = prompt.replace(placeholder, value)
+        elif value is None:
+            prompt = prompt.replace(placeholder, "")
+        else:
+            deferred.append((name, value))
 
-    return prompt
+    if not deferred:
+        return prompt
+
+    prompts = [prompt]
+
+    for name, value in deferred:
+        placeholder = "{{" + name + "}}"
+
+        def replace_variable_by_object(prompt):
+            parts = prompt.split(placeholder)
+
+            def gather():
+                for p in parts:
+                    yield p
+                    yield value
+
+            return list(gather())[:-1]
+
+        prompts = [replace_variable_by_object(p) for p in prompts if isinstance(p, str)]
+        prompts = [  # Flatten
+            item for sublist in prompts if isinstance(sublist, list) for item in sublist
+        ]
+
+    return prompts
 
 
-class Costs:
+class Costs:  # TODO
     def __init__(self):
         self.start = time()
         self.total = 0.0

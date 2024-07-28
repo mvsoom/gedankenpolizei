@@ -10,7 +10,7 @@ from tqdm import tqdm
 from vertexai.generative_models import GenerationConfig
 
 from src.config import CONFIG, ConfigArgumentParser
-from src.gemini import gemini, read_prompt_file
+from src.gemini import gemini, read_prompt_file, replace_variables
 from src.slow.embed import embed
 from src.slow.reddit import tui
 from src.slow.reddit.makeposts import formatpost
@@ -28,9 +28,9 @@ SCORE = {
 # BIAS = "I am feeling good, happy, fine, neutral."
 BIAS = "I see people."
 
-PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt"))
-
-MODEL = gemini()
+PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt_file"))
+MODEL_NAME = CONFIG("slow.reddit.model.name")
+MODEL = gemini(MODEL_NAME)
 
 
 def weigh_subreddits(pdf, vdf):
@@ -66,13 +66,13 @@ def ask_gemini(post, explain=False, examples=None):
     if explain:
         # Let the LLM finish with the one-sentence justification
         generation_config = None
-        query = query.replace(
-            "{{OPTIONALLY_EXPLAIN}}", " followed by a one-sentence justification"
+        query = replace_variables(
+            query, OPTIONALLY_EXPLAIN=" followed by a one-sentence justification"
         )
     else:
         # Cut the LLM short after GOOD or BAD (single tokens)
         generation_config = GenerationConfig(max_output_tokens=1)
-        query = query.replace("{{OPTIONALLY_EXPLAIN}}", "")
+        query = replace_variables(query, OPTIONALLY_EXPLAIN=None)
 
     if examples:
         text = "\nHere are some examples of GOOD and BAD posts:\n"
@@ -80,9 +80,9 @@ def ask_gemini(post, explain=False, examples=None):
         for label, sample in examples:
             text += f"```\n{sample['post']}\n``` => {label}\n"
 
-        query = query.replace("{{OPTIONAL_EXAMPLES}}", text)
+        query = replace_variables(query, OPTIONAL_EXAMPLES=text)
     else:
-        query = query.replace("{{OPTIONAL_EXAMPLES}}", "")
+        query = replace_variables(query, OPTIONAL_EXAMPLES=None)
 
     response = MODEL.generate_content(
         query,

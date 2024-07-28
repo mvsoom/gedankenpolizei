@@ -20,10 +20,10 @@ Trial-and-error, heuristics and also some more principled ideas, such as random 
 
 To make `gedankenpolizei` possible, debug-able and operatable, I designed some components which some may find innovative or helpful for their own LLM research.
 
-- The concept of three levels of semantic information: SLOW, FAST, NOW; each moving at different speeds in embedded space.
+- The concept of three levels of semantic information: SLOW, FAST, RAW; each moving at different speeds in embedded space.
 - A module for Reddit scraping and vetting tools which are reusable and robust. Used for SLOW.
 - Nearly-realtime vision using subsecond video captioning in conjunction with an aggregation pipeline. Used for FAST.
-- Realtime streaming of coherent thought-like text given the SLOW and FAST thought streams. Used for NOW.
+- Realtime streaming of coherent thought-like text given the SLOW and FAST thought streams. Used for RAW.
 - A module for Markdown logging which can be monitored live with `mdcat`. Handy for debugging and logging apps that process images.
 
 More information can be found in other Markdown files in this repo.

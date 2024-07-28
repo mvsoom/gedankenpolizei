@@ -14,25 +14,9 @@ gemini:
       cost_per_image: 0.0001315
       cost_per_input_char: 0.000000125
       cost_per_output_char: 0.000000375
-
-fast:
-  # If both dimensions of an image's aspect ratio are less than or equal to 384, then 258 tokens are used (per https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/image-understanding#image-requirements)
-  max_size: [384, 288]  # Can be left empty to disable resizing
-
-  memory:
-    # Number of frames to keep in memory (excludes current `now` frame)
-    max_size: 4
-
-    # Downscale the (-i)th frame by (scaling**i)
-    # Note that Gemini does not charge more for larger images, so this is only useful for speeding up processing
-    scaling: 0.9
-  
-  model:
-    system_prompt_file: data/prompts/fast/gemini.system_prompt
-    temperature: 0.3
-
-  novelty_threshold: 15  # Ignore narrations with novelty below this threshold
-
+    
+    pro:
+      name: gemini-1.5-pro-001 # Discontinued on May 24, 2025
 
 slow:
   embed:
@@ -40,7 +24,10 @@ slow:
       name: BAAI/bge-m3
 
   reddit:
-    vet_prompt: data/prompts/slow/vet.prompt
+    model:
+      name: flash
+
+    vet_prompt_file: data/prompts/slow/vet.prompt
     hf_repo_id: mvsoom/gedankenpolizei
     hf_slow_thoughts_file: slow_thoughts.feather
 
@@ -67,11 +54,31 @@ slow:
   walk:
     max_steps: 10
 
+fast:
+  # If both dimensions of an image's aspect ratio are less than or equal to 384, then 258 tokens are used (per https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/image-understanding#image-requirements)
+  max_size: [384, 288]  # Can be left empty to disable resizing
 
-now:
+  memory:
+    # Number of frames to keep in memory (excludes current `now` frame)
+    max_size: 4
+
+    # Downscale the (-i)th frame by (scaling**i)
+    # Note that Gemini does not charge more for larger images, so this is only useful for speeding up processing
+    scaling: 0.9
+  
   model:
-    name: claude-3-opus-20240229
-    temperature: 1.0
-  user_prompt_file: data/prompts/now/user_prompt_fixed_width
-  terminal_width: 16
+    name: flash
+    system_prompt_file: data/prompts/fast/gemini.system_prompt
+    temperature: 0.3
+
+  novelty_threshold: 15  # Ignore narrations with novelty below this threshold
+
+raw:
+  model:
+    name: pro
+    system_prompt_file: data/prompts/raw/gemini.system_prompt
+    prompt_file: data/prompts/raw/gemini.prompt
+    temperature: 2.0
+  
+  max_inputs: 20
 

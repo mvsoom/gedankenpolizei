@@ -1,8 +1,0 @@
-# Starting point
-Turn the following narration of a video into a stream of consciousness between <soc>...</soc> tags.
-
-<video_narration>
-{{NARRATION}}
-</video_narration>
-
-p.s.: You can also just draw ASCII art, it will be streamed to a terminal which can handle ANSI escape codes.

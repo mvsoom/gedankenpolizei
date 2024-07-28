@@ -89,7 +89,7 @@ def main():
     if args.replay:
         replay_stream(args.file, args.scale)
         if args.loop:
-            main()
+            main()  # Quick hack
     else:
         record_stream(args.file, args.dt, args.echo)
 

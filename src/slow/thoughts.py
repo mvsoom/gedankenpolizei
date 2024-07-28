@@ -79,3 +79,7 @@ def walk(last, current):
 
     # Walking failed; teleport to a new random SLOW thought
     return new_slow_thought()
+
+
+def sample_slow_thought():
+    return SLOWDF.sample().iloc[0].thought

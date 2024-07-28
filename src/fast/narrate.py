@@ -68,7 +68,11 @@ def valid_narration(past, output):
 def writeout(output, frame, args):
     if args.jsonl:
         if args.output_frame:
-            print(json.dumps({"frame": frame, **output}))
+            print(
+                json.dumps(
+                    {"frame": frame.encode64(), "timestamp": frame.timestamp, **output}
+                )
+            )
         else:
             print(json.dumps(output))
     else:

@@ -2,7 +2,7 @@
 
 ## Getting and processing raw posts from Reddit
 
-The SLOW stream provides seeding thoughts for the NOW stream. We get these seeding thoughts from scraping appropriate subreddits. These are listed in `data/reddit/subreddit.list`.
+The SLOW stream provides seeding thoughts for the RAW stream. We get these seeding thoughts from scraping appropriate subreddits. These are listed in `data/reddit/subreddit.list`.
 
 The raw posts also **normalized** to be easier to handle: removing empty posts, providing unique ids, etc. They are also sentencised with NLP to subdivide them into atoms of thought.
 
@@ -19,7 +19,7 @@ This takes ~1 day and yields about 1.3m raw posts, of which roughly 350k are unl
 > *Note about legal issues.*
 > Scraping public data isn’t in violation of the US Computer Fraud and Abuse Act. Academic research is allowed, which is how this project is framed, but redistributing scraped content is sketchy. Note that the `scrape.py` script does not use the Reddit API. All posts are anonymized and NER is used to ignore posts that could contain further personal information. In fact the whole goal of the processing pipeline is to amass seed thoughts that express any kind of human thought that is not specific human-identifying but rather a general "atom of thought".
 > Nevertheless, the raw data is not redistributed. The final database (see below) can be downloaded from Hugging Face only if a private HF token is known (for testing and/or reproduction). This token can be revoked at any time.
-> Finally, note that the final NOW output does not echo these scraped posts; it rather builds upon them and transforms them into new thoughts. It is also not used directly to train new LLMs.
+> Finally, note that the final RAW output does not echo these scraped posts; it rather builds upon them and transforms them into new thoughts. It is also not used directly to train new LLMs.
 
 ## Vetting posts manually
 
