@@ -6,10 +6,9 @@ import traceback
 from pathlib import Path
 from time import ctime, time
 
+from src import STARTTIME
 from src.config import CONFIG
 from src.log.format import MarkdownFormatter, epoch_url, markdown_link
-
-STARTTIME = time()
 
 LOG_LEVEL = CONFIG("log.level")
 LOG_DIR = CONFIG("log.dir")

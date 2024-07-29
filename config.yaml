@@ -80,5 +80,18 @@ raw:
     prompt_file: data/prompts/raw/gemini.prompt
     temperature: 2.0
   
-  max_inputs: 20
+  # Condition a single request with at most `max_fast_inputs` FAST narrations
+  max_fast_inputs: 20
+
+  # Condition a single request with at most `max_raw_memory` chars of the RAW stream
+  max_raw_memory: 2048
+
+  output:
+    # Average output rate in chars per second
+    rate: 15.0
+
+    # Output jitter in percent
+    jitter: 0.20
+
+
 

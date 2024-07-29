@@ -1,24 +1,23 @@
 """Stream RAWness conditioned on SLOW and FAST thoughts to stdout"""
 
 import base64
-import functools
 import json
+import random
 import sys
 import threading
 from collections import deque
+from math import exp
 from queue import LifoQueue
 from sys import exit
-from time import time
+from time import sleep, time
 
-_TIME_OFFSET = time()  # Need this here for accurate --time-offset
-
+from src import STARTTIME
 from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import Frame
 from src.gemini import gemini, read_prompt_file, replace_variables
-from src.log import debug, error, info
-
-# Ensure print always flushes to stdout
-print = functools.partial(print, flush=True)
+from src.log import debug, error, info, verbose
+from src.raw.tape import Tape
+from src.slow.thoughts import sample_slow_thought  # Import takes a while
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("raw.model.system_prompt_file"))
 PROMPT = read_prompt_file(CONFIG("raw.model.prompt_file"))
@@ -31,8 +30,30 @@ MODEL = gemini(
     system_instruction=SYSTEM_PROMPT,
 )
 
-MAX_INPUTS = CONFIG("raw.max_inputs")
+MAX_FAST_INPUTS = CONFIG("raw.max_fast_inputs")
+MAX_RAW_MEMORY = CONFIG("raw.max_raw_memory")
+OUTPUT_RATE = CONFIG("raw.output.rate")
+OUTPUT_JITTER = CONFIG("raw.output.jitter")
 
+
+def jitter(x):
+    u = random.gauss(0, 1) * OUTPUT_JITTER
+    return x * exp(u)
+
+
+def output(raw_tape, args):
+    last = time()
+    while True:
+        c = raw_tape.getchar()
+
+        dt = time() - last
+        target = 1.0 / OUTPUT_RATE
+        if dt < target:
+            sleep(jitter(target - dt))
+
+        print(c, end="", flush=True)
+
+        last = time()
 
 def fast_thoughts(inputs):
     def gather():
@@ -42,6 +63,10 @@ def fast_thoughts(inputs):
             yield f"({dt:.2f}s ago) {narration}"
 
     return "\n".join(gather())
+
+
+def raw_thoughts(raw_tape):
+    return "".join(raw_tape[:])  # TODO
 
 
 def maybe_last_frame(inputs, ignore_frames):
@@ -58,23 +83,22 @@ def maybe_last_frame(inputs, ignore_frames):
         return None
 
 
-def stream(q, args):
-    from src.slow.thoughts import sample_slow_thought  # Import takes a while
-
+def stream(raw_tape, q, args):
     slow_thought = sample_slow_thought()
-    raw_thoughts = ""
 
     while True:
         inputs = q.get(block=True)
 
         optional_frame = maybe_last_frame(inputs, args.ignore_frames)
 
+        raw_tape.cut(-MAX_RAW_MEMORY, keep="right")  # TODO: adjust to future chars
+
         prompt = replace_variables(
             PROMPT,
             SLOW_THOUGHT=slow_thought,
             FAST_THOUGHTS=fast_thoughts(inputs),
             OPTIONAL_FRAME=optional_frame,
-            RAW_THOUGHTS=raw_thoughts,
+            RAW_THOUGHTS=raw_thoughts(raw_tape),
         )
 
         if optional_frame:
@@ -90,12 +114,12 @@ def stream(q, args):
 
             for chunk in stream:
                 text = chunk.text
-                raw_thoughts += text
-                print(text, end="")
+                raw_tape.puts(text)
                 debug(text)
 
                 if not q.empty():
                     # Break the loop and regenerate content conditioned on newly received inputs
+                    verbose("Streaming stopped to recondition on new inputs")
                     stream.close()
                     continue
 
@@ -108,13 +132,19 @@ def stream(q, args):
 
 
 def main(args):
+    raw_tape = Tape()
+
+    output_thread = threading.Thread(target=output, args=(raw_tape, args))
+    output_thread.daemon = True
+    output_thread.start()
+
     q = LifoQueue(1)
 
-    streaming_thread = threading.Thread(target=stream, args=(q, args))
+    streaming_thread = threading.Thread(target=stream, args=(raw_tape, q, args))
     streaming_thread.daemon = True
     streaming_thread.start()
 
-    inputs = deque(maxlen=MAX_INPUTS)
+    inputs = deque(maxlen=MAX_FAST_INPUTS)
 
     for line in sys.stdin:
         try:
@@ -124,7 +154,7 @@ def main(args):
             continue
 
         if args.time_offset:
-            input["timestamp"] -= args.time_offset - _TIME_OFFSET
+            input["timestamp"] -= args.time_offset - STARTTIME
 
         inputs.append(input)
         q.put(inputs)

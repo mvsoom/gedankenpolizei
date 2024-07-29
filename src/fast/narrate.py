@@ -1,6 +1,5 @@
 """Narrate MJPEG stdin input to stdout"""
 
-import functools
 import json
 import sys
 import threading
@@ -10,9 +9,6 @@ from time import sleep
 from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import Frame, Memory, narrate
 from src.log import debug, error, info, verbose
-
-# Ensure print always flushes to stdout
-print = functools.partial(print, flush=True)
 
 MAX_SIZE = CONFIG("fast.max_size")
 NOVELTY_THRESHOLD = CONFIG("fast.novelty_threshold")
@@ -68,15 +64,14 @@ def valid_narration(past, output):
 def writeout(output, frame, args):
     if args.jsonl:
         if args.output_frame:
-            print(
-                json.dumps(
-                    {"frame": frame.encode64(), "timestamp": frame.timestamp, **output}
-                )
+            s = json.dumps(
+                {"frame": frame.encode64(), "timestamp": frame.timestamp, **output}
             )
         else:
-            print(json.dumps(output))
+            s = json.dumps(output)
     else:
-        print(output["narration"])
+        s = output["narration"]
+    print(s, flush=True)
 
 
 def main(args):
