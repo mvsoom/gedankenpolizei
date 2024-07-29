@@ -59,7 +59,7 @@ class Tape:
                 if index > 0:
                     self.head = 0
                 else:
-                    self.head = min(-index, len(self.data))
+                    self.head = min(-index, self.head)
             else:
                 raise ValueError("`keep` must be 'left' or 'right'")
 
@@ -73,7 +73,8 @@ class Tape:
             return string[: self.head] + "↪" + string[self.head :]
 
     def __repr__(self):
-        return f"Tape({self.__str__()}, len={len(self)})"
+        string = self.__str__()
+        return f'Tape("{repr(string)}", len={len(self)})'
 
 
 if __name__ == "__main__":
@@ -81,7 +82,7 @@ if __name__ == "__main__":
 
     def processor(tape):
         while True:
-            # print(tape.__repr__(), flush=True)
+            # print(repr(tape), flush=True)
             item = tape.getchar()
             print(item, end="", flush=True)
             time.sleep(0.1)
