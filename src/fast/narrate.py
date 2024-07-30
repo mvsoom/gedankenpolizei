@@ -63,7 +63,7 @@ def valid_narration(past, output):
 
 def writeout(output, frame, args):
     if args.jsonl:
-        if args.output_frame:
+        if args.output_frames:
             s = json.dumps(
                 {"frame": frame.encode64(), "timestamp": frame.timestamp, **output}
             )
@@ -131,14 +131,14 @@ if __name__ == "__main__":
         help="Output narrations with metadata in JSONL format(default: %(default)s)",
     )
     parser.add_argument(
-        "--output-frame",
+        "--output-frames",
         action="store_true",
         help="Output last frame together with narration (requires --jsonl, default: %(default)s)",
     )
 
     args = parser.parse_args()
-    if args.output_frame and not args.jsonl:
-        raise ValueError("--output-frame requires --jsonl")
+    if args.output_frames and not args.jsonl:
+        raise ValueError("--output-frames requires --jsonl")
 
     debug(f"Running main({args})")
 
