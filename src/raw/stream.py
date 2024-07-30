@@ -2,6 +2,7 @@
 
 import base64
 import json
+import queue
 import random
 import sys
 import threading
@@ -100,10 +101,7 @@ def raw_thoughts_from(raw_tape, ttft=float("inf")):
         return "".join(raw_tape[:])
 
 
-def maybe_last_frame(inputs, ignore_frames):
-    if ignore_frames:
-        return None
-
+def maybe_last_frame(inputs):
     last = inputs[-1]
 
     if "frame" in last:
@@ -121,13 +119,22 @@ def sample_slow_thought():
 def stream(raw_tape, q, args):
     ttft = float("inf")  # Expected time to first token
 
+    fast_thoughts = ""
+    optional_frame = None
     slow_thought = sample_slow_thought()
 
     while True:
-        inputs = q.get(block=True)
+        try:
+            # If new inputs, update FAST stream
+            inputs = q.get_nowait()
 
-        fast_thoughts = fast_thoughts_from(inputs)
-        optional_frame = maybe_last_frame(inputs, args.ignore_frames)
+            info("Received new inputs")
+
+            fast_thoughts = fast_thoughts_from(inputs)
+            optional_frame = None if args.ignore_frames else maybe_last_frame(inputs)
+        except queue.Empty:
+            pass
+
         raw_thoughts = raw_thoughts_from(raw_tape, ttft)
 
         prompt = replace_variables(
