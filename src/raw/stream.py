@@ -23,13 +23,13 @@ from src.slow.thoughts import sample_thought
 SYSTEM_PROMPT = read_prompt_file(CONFIG("raw.model.system_prompt_file"))
 PROMPT = read_prompt_file(CONFIG("raw.model.prompt_file"))
 
-MODEL_NAME = CONFIG("raw.model.name")
-MODEL_TEMPERATURE = CONFIG("raw.model.temperature")
 MODEL = gemini(
-    MODEL_NAME,
+    CONFIG("raw.model.name"),
     generation_config={
-        "temperature": MODEL_TEMPERATURE,
-        "stop_sequences": ["```", "RAW"],  # Stop the MODEL from repeating prompt
+        "stop_sequences": CONFIG("raw.model.stop_sequences"),
+        "top_p": CONFIG("raw.model.top_p"),
+        "top_k": CONFIG("raw.model.top_k"),
+        "temperature": CONFIG("raw.model.temperature"),
     },
     system_instruction=SYSTEM_PROMPT,
 )

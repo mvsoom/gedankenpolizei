@@ -17,3 +17,4 @@ TODO: mention:
 - fully customizable via command line or config file
 - Gemini unleashed
 - High temperature regime
+- Minimal prompt engineering to give Gemini spaec

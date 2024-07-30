@@ -29,8 +29,7 @@ SCORE = {
 BIAS = "I see people."
 
 PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt_file"))
-MODEL_NAME = CONFIG("slow.reddit.model.name")
-MODEL = gemini(MODEL_NAME)
+MODEL = gemini(CONFIG("slow.reddit.model.name"))
 
 
 def weigh_subreddits(pdf, vdf):

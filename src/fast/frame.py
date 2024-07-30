@@ -17,13 +17,11 @@ from src.gemini import (
 from src.log import debug
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("fast.model.system_prompt_file"))
-TEMPERATURE = CONFIG("fast.model.temperature")
-MODEL_NAME = CONFIG("fast.model.name")
 
 MODEL = gemini(
-    MODEL_NAME,
+    CONFIG("fast.model.name"),
     generation_config={
-        "temperature": TEMPERATURE,
+        "temperature": CONFIG("fast.model.temperature"),
         "response_mime_type": "application/json",
     },
     system_instruction=SYSTEM_PROMPT,

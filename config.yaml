@@ -78,6 +78,11 @@ raw:
     name: pro
     system_prompt_file: data/prompts/raw/gemini.system_prompt
     prompt_file: data/prompts/raw/gemini.prompt
+    stop_sequences:  # These discourage the MODEL from occasionally repeating the prompt
+      - "```"
+      - "RAW"
+    top_k: 40   # Higher value for more random responses. Max(pro) = 40
+    top_p: 1.0  # Higher value for more random responses
     temperature: 2.0
   
   # Condition a single request with at most `max_fast_inputs` FAST narrations
