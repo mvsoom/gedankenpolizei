@@ -1,0 +1,1 @@
+ffplay -loglevel panic assets/test_movie.avi & monitor/record --replay assets/test_movie.jsonl | python -m src.raw.stream --time-offset 1722120753.5758662 $@

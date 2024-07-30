@@ -6,7 +6,7 @@ import random
 import sys
 import threading
 from collections import deque
-from math import exp
+from math import exp, floor
 from queue import LifoQueue
 from sys import exit
 from time import sleep, time
@@ -17,7 +17,7 @@ from src.fast.frame import Frame
 from src.gemini import gemini, read_prompt_file, replace_variables
 from src.log import debug, error, info, verbose
 from src.raw.tape import Tape
-from src.slow.thoughts import sample_slow_thought  # Import takes a while
+from src.slow.thoughts import sample_thought
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("raw.model.system_prompt_file"))
 PROMPT = read_prompt_file(CONFIG("raw.model.prompt_file"))
@@ -26,7 +26,10 @@ MODEL_NAME = CONFIG("raw.model.name")
 MODEL_TEMPERATURE = CONFIG("raw.model.temperature")
 MODEL = gemini(
     MODEL_NAME,
-    generation_config={"temperature": MODEL_TEMPERATURE, "stop_sequences": ["```"]},
+    generation_config={
+        "temperature": MODEL_TEMPERATURE,
+        "stop_sequences": ["```", "RAW"],  # Stop the MODEL from repeating prompt
+    },
     system_instruction=SYSTEM_PROMPT,
 )
 
@@ -51,11 +54,23 @@ def output(raw_tape, args):
         if dt < target:
             sleep(jitter(target - dt))
 
-        print(c, end="", flush=True)
+        if not args.roll_tape:
+            print(c, end="", flush=True)
+        else:
+            # Clear the screen
+            print("\033[H\033[J", end="", flush=True)
+
+            # Output the rolling tape
+            text = str(raw_tape)
+            written, buffered = text.rsplit("↪", 1)
+            buffered = f"\033[3m{buffered}\033[0m"  # Italics
+
+            print(written + "↪" + buffered, end="", flush=True)
 
         last = time()
 
-def fast_thoughts(inputs):
+
+def fast_thoughts_from(inputs):
     def gather():
         for input in inputs:
             dt = time() - input["timestamp"]
@@ -65,8 +80,24 @@ def fast_thoughts(inputs):
     return "\n".join(gather())
 
 
-def raw_thoughts(raw_tape):
-    return "".join(raw_tape[:])  # TODO
+def raw_thoughts_from(raw_tape, ttft=float("inf")):
+    """Get the stream of RAW thoughts from the running `raw_tape`
+
+    If the tape is running ahead with respect to output(), we go ahead and return RAW thoughts that include the past but also a small amount of future characters
+    These will be output() during the time it takes for the next request from the MODEL (this time is `ttft` or time to first token)
+    This go-ahead strategy tries to simulate a continuous stream of thought without hiccups caused by finite `ttft`s
+    """
+    with raw_tape.lock:
+        nbuffered = len(raw_tape[0:])
+        nttft = ttft * OUTPUT_RATE
+        ncontinue = floor(min(nbuffered, nttft))
+
+        info(f"Tape nbuffered: {nbuffered}, nttft: {nttft:.0f}")
+
+        raw_tape.cut(+ncontinue, keep="left")
+        raw_tape.cut(-MAX_RAW_MEMORY, keep="right")
+
+        return "".join(raw_tape[:])
 
 
 def maybe_last_frame(inputs, ignore_frames):
@@ -83,52 +114,78 @@ def maybe_last_frame(inputs, ignore_frames):
         return None
 
 
+def sample_slow_thought():
+    return sample_thought()  # FIXME
+
+
 def stream(raw_tape, q, args):
+    ttft = float("inf")  # Expected time to first token
+
     slow_thought = sample_slow_thought()
 
     while True:
         inputs = q.get(block=True)
 
+        fast_thoughts = fast_thoughts_from(inputs)
         optional_frame = maybe_last_frame(inputs, args.ignore_frames)
-
-        raw_tape.cut(-MAX_RAW_MEMORY, keep="right")  # TODO: adjust to future chars
+        raw_thoughts = raw_thoughts_from(raw_tape, ttft)
 
         prompt = replace_variables(
             PROMPT,
             SLOW_THOUGHT=slow_thought,
-            FAST_THOUGHTS=fast_thoughts(inputs),
+            FAST_THOUGHTS=fast_thoughts,
             OPTIONAL_FRAME=optional_frame,
-            RAW_THOUGHTS=raw_thoughts(raw_tape),
+            RAW_THOUGHTS=raw_thoughts,
         )
 
         if optional_frame:
             prompt_text = "".join(str(p) for p in prompt)
-            info(prompt_text, extra={"image": optional_frame._pil_image})
+            verbose(prompt_text, extra={"image": optional_frame._pil_image})
         else:
-            info(prompt)
+            verbose(prompt)
+
+        debug(repr(raw_tape))
 
         try:
-            stream = MODEL.generate_content(
-                prompt, stream=True
-            )  # TODO: predict # tokens to ask for
+            t = time()
+            recondition = False
 
-            for chunk in stream:
+            stream = MODEL.generate_content(prompt, stream=True)
+
+            for i, chunk in enumerate(stream):
+                if i == 0:
+                    ttft = time() - t
+                    info(f"Time to first token: {ttft:.2f}s")
+
                 text = chunk.text
                 raw_tape.puts(text)
-                debug(text)
+
+                debug(f"Chunk {i}: {repr(text)}")
 
                 if not q.empty():
-                    # Break the loop and regenerate content conditioned on newly received inputs
-                    verbose("Streaming stopped to recondition on new inputs")
+                    # Break the loop immediately to recondition on newly received inputs in `q`
                     stream.close()
-                    continue
+                    del stream
+                    recondition = True
+                    info("Stopped stream for reconditioning")
+                    break
+
+            if recondition:
+                continue
 
         except Exception as e:
             error(f"Exception during generate_content or streaming: {e}", exc_info=True)
+            ttft = float("inf")
             continue
 
+        # WHAT TO DO HERE WITH TOKEN PREDICITON?
         # If we reach this point, the stream of thought has ended naturally
-        slow_thought = sample_slow_thought()
+
+        info("Stream ended naturally")
+
+        slow_thought = sample_slow_thought() if not args.no_slow_thoughts else ""
+
+        info("Sampled new slow thought")
 
 
 def main(args):
@@ -159,6 +216,11 @@ def main(args):
         inputs.append(input)
         q.put(inputs)
 
+    streaming_thread.join()
+    output_thread.join()
+
+    return 0
+
 
 if __name__ == "__main__":
     parser = ConfigArgumentParser(description=__doc__)
@@ -179,11 +241,26 @@ if __name__ == "__main__":
         default=False,
         help="Ignore frame inputs",
     )
+    parser.add_argument(
+        "--no-slow-thoughts",
+        action="store_true",
+        default=False,
+        help="Disable SLOW thoughts",
+    )
+    parser.add_argument(
+        "--roll-tape",
+        action="store_true",
+        default=False,
+        help="Output the rolling tape of RAW thoughts. Requires a terminal that supports ANSI escape codes",
+    )
 
     args = parser.parse_args()
 
     PROMPT = replace_variables(
         PROMPT, MAYBE_ASCII_ART="ASCII art " if args.ascii else None
     )
+
+    if args.no_slow_thoughts:
+        sample_slow_thought = lambda: ""
 
     exit(main(args))

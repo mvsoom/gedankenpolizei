@@ -12,3 +12,8 @@ TODO: mention:
 - Enforce happiness
 - Aggravate depression
 - Enter existentialist holes
+
+- 100% terminal compatible
+- fully customizable via command line or config file
+- Gemini unleashed
+- High temperature regime

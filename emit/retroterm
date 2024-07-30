@@ -17,7 +17,8 @@ cleanup() {
 trap cleanup SIGINT SIGTERM SIGCHLD
 
 # Launch cool-retro-term and run a command to read from the named pipe
-RUNCMD="(clear; tail -f $PIPE | lolcat -a)"
+#RUNCMD="(clear; tail -f $PIPE | lolcat -a)"
+RUNCMD="(clear; tail -f $PIPE)"
 cool-retro-term \
     -geometry ${SIZE}+0+0 \
     --profile "$PROFILE" \

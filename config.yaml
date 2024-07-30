@@ -81,17 +81,19 @@ raw:
     temperature: 2.0
   
   # Condition a single request with at most `max_fast_inputs` FAST narrations
-  max_fast_inputs: 20
+  max_fast_inputs: 30
 
   # Condition a single request with at most `max_raw_memory` chars of the RAW stream
-  max_raw_memory: 2048
+  # Note: this is approximate as it doesn't take into account thoughts running ahead
+  # Shorter memory enables more quirky and less coherent responses
+  max_raw_memory: 256
 
   output:
     # Average output rate in chars per second
-    rate: 15.0
+    rate: 18.
 
     # Output jitter in percent
-    jitter: 0.20
+    jitter: 0.10
 
 
 

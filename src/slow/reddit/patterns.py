@@ -160,6 +160,7 @@ LABEL_PATTERNS = {
             "this community",
             "this article",
             "soundcloud",
+            "cake( )?day(s)?",
             "podcast",
             "(yo)?u guys",
             "admin",

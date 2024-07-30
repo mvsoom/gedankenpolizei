@@ -7,26 +7,24 @@ class Tape:
         self.data = []
         self.head = 0
 
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.incoming = threading.Condition(self.lock)  # Note: this is also a Lock
 
     def puts(self, string):
         with self.incoming:
             self.data.extend(string)
-            self.incoming.notify()
+            self.incoming.notify_all()
 
     def getchar(self):
         """Wait for the next character at the tape head, consume it, and advance the tape one char to the left"""
-        while True:
-            try:
-                char = self.peek(0)
-                break
-            except IndexError:
-                with self.incoming:
+        with self.incoming:
+            while True:
+                try:
+                    char = self.peek(0)
+                    self.head += 1  # Move the tape head one char to the left
+                    return char
+                except IndexError:
                     self.incoming.wait()
-
-        self.head += 1  # Move the tape one char to the left
-        return char
 
     def _transform_slice(self, s):
         start, stop, step = s.start, s.stop, s.step
@@ -55,13 +53,18 @@ class Tape:
                 if index < 0:
                     self.head = len(self.data)
             elif keep == "right":
-                self.data = self.data[index + self.head :]
                 if index > 0:
+                    self.data = self.data[index + self.head :]
                     self.head = 0
                 else:
+                    # List indexing semantics depend on sign of index >:(
+                    positive = max(index + self.head, 0)
+                    self.data = self.data[positive:]
                     self.head = min(-index, self.head)
             else:
                 raise ValueError("`keep` must be 'left' or 'right'")
+            assert self.head <= len(self.data)
+            self.incoming.notify_all()
 
     def __len__(self):
         with self.lock:
@@ -74,7 +77,7 @@ class Tape:
 
     def __repr__(self):
         string = self.__str__()
-        return f'Tape("{repr(string)}", len={len(self)})'
+        return f"Tape({repr(string)}, head={self.head}, len={len(self)})"
 
 
 if __name__ == "__main__":
@@ -103,4 +106,4 @@ if __name__ == "__main__":
     time.sleep(3)
     print()
     print(repr(tape))
-    # Outputs: Tape(I am CUT LEFT↪, len=13)
+    # Outputs: Tape('I am CUT LEFT↪', len=13)

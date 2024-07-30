@@ -81,5 +81,5 @@ def walk(last, current):
     return new_slow_thought()
 
 
-def sample_slow_thought():
+def sample_thought():
     return SLOWDF.sample().iloc[0].thought
