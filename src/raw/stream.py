@@ -76,7 +76,7 @@ def fast_thoughts_from(inputs):
         for input in inputs:
             dt = time() - input["timestamp"]
             narration = input["narration"]
-            yield f"({dt:.2f}s ago) {narration}"
+            yield f"({dt:.1f}s ago) {narration}"
 
     return "\n".join(gather())
 
@@ -131,7 +131,7 @@ def stream(raw_tape, q, args):
             info("Received new inputs")
 
             fast_thoughts = fast_thoughts_from(inputs)
-            optional_frame = None if args.ignore_frames else maybe_last_frame(inputs)
+            optional_frame = maybe_last_frame(inputs)
         except queue.Empty:
             pass
 
@@ -220,6 +220,9 @@ def main(args):
         if args.time_offset:
             input["timestamp"] -= args.time_offset - STARTTIME
 
+        if args.ignore_frames and "frame" in input:
+            del input["frame"]
+
         inputs.append(input)
         q.put(inputs)
 
@@ -264,7 +267,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     PROMPT = replace_variables(
-        PROMPT, MAYBE_ASCII_ART="ASCII art " if args.ascii else None
+        PROMPT, MAYBE_ASCII_ART="ASCII" + " " if args.ascii else None
     )
 
     if args.no_slow_thoughts:

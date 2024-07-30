@@ -81,17 +81,17 @@ raw:
     stop_sequences:  # These discourage the MODEL from occasionally repeating the prompt
       - "```"
       - "RAW"
-    top_k: 40   # Higher value for more random responses. Max(pro) = 40
-    top_p: 1.0  # Higher value for more random responses
+    top_k: 40    # Higher value for more random responses. Max(pro) = 40
+    top_p: 0.95  # Higher value for more random responses
     temperature: 2.0
   
   # Condition a single request with at most `max_fast_inputs` FAST narrations
-  max_fast_inputs: 30
+  max_fast_inputs: 20
 
   # Condition a single request with at most `max_raw_memory` chars of the RAW stream
   # Note: this is approximate as it doesn't take into account thoughts running ahead
   # Shorter memory enables more quirky and less coherent responses
-  max_raw_memory: 256
+  max_raw_memory: 512
 
   output:
     # Average output rate in chars per second
