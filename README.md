@@ -18,3 +18,14 @@ TODO: mention:
 - Gemini unleashed
 - High temperature regime
 - Minimal prompt engineering to give Gemini spaec
+
+
+SHOWCASE:
+- client front end
+- --roll-tape mode
+- watch desktop/movie together
+- walks in semantic space
+
+- terminal mode
+  * retro-term
+  * lolcat

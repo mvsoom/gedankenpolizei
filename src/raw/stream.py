@@ -18,7 +18,6 @@ from src.fast.frame import Frame
 from src.gemini import gemini, read_prompt_file, replace_variables
 from src.log import debug, error, info, verbose
 from src.raw.tape import Tape
-from src.slow.thoughts import sample_thought
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("raw.model.system_prompt_file"))
 PROMPT = read_prompt_file(CONFIG("raw.model.prompt_file"))
@@ -113,6 +112,8 @@ def maybe_last_frame(inputs):
 
 
 def sample_slow_thought():
+    from src.slow.thoughts import sample_thought
+
     return sample_thought()  # FIXME
 
 
@@ -172,12 +173,12 @@ def stream(raw_tape, q, args):
                 if not q.empty():
                     # Break the loop immediately to recondition on newly received inputs in `q`
                     stream.close()
-                    del stream
                     recondition = True
                     info("Stopped stream for reconditioning")
                     break
 
             if recondition:
+                del stream
                 continue
 
         except Exception as e:
@@ -185,12 +186,20 @@ def stream(raw_tape, q, args):
             ttft = float("inf")
             continue
 
-        # WHAT TO DO HERE WITH TOKEN PREDICITON?
         # If we reach this point, the stream of thought has ended naturally
+        with raw_tape.lock:
+            nbuffered = len(raw_tape[0:])
+            nttft = ttft * OUTPUT_RATE
 
-        info("Stream ended naturally")
+            nwait = max(nbuffered - nttft, 0)
 
-        slow_thought = sample_slow_thought() if not args.no_slow_thoughts else ""
+        info(f"Stream ended naturally, sleeping for {nwait} chars")
+
+        sleep(nwait / OUTPUT_RATE)  # FIXME: CANT DO THIS WITH FAST input!!
+
+        # `fever`` parameter: how long to wait for a new thougth in terms of nwait?
+
+        slow_thought = sample_slow_thought()
 
         info("Sampled new slow thought")
 
@@ -271,6 +280,6 @@ if __name__ == "__main__":
     )
 
     if args.no_slow_thoughts:
-        sample_slow_thought = lambda: ""
+        sample_slow_thought = lambda: None
 
     exit(main(args))

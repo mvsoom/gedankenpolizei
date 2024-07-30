@@ -78,7 +78,7 @@ raw:
     name: pro
     system_prompt_file: data/prompts/raw/gemini.system_prompt
     prompt_file: data/prompts/raw/gemini.prompt
-    stop_sequences:  # These discourage the MODEL from occasionally repeating the prompt
+    stop_sequences:  # These discostopurage the MODEL from very occasionally revealing the prompt setup
       - "```"
       - "RAW"
     top_k: 40    # Higher value for more random responses. Max(pro) = 40
@@ -90,7 +90,7 @@ raw:
 
   # Condition a single request with at most `max_raw_memory` chars of the RAW stream
   # Note: this is approximate as it doesn't take into account thoughts running ahead
-  # Shorter memory enables more quirky and less coherent responses
+  # Shorter memory (like 32) means increased responsiveness to FAST stream
   max_raw_memory: 512
 
   output:
