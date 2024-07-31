@@ -8,10 +8,13 @@ from numpy.linalg import norm
 from sentence_transformers import SentenceTransformer
 
 from src.config import CONFIG
+from src.log import verbose
 
 NAME = CONFIG("slow.embed.model.name")
 MODEL = SentenceTransformer(NAME)
 DIMENSION = MODEL.get_sentence_embedding_dimension()
+
+verbose(f"Loaded {NAME} embedding model with dimension {DIMENSION}")
 
 
 def zero():
@@ -47,6 +50,28 @@ def embed(text, truncation_length=MODEL.max_seq_length):
     embedding = model_output["sentence_embedding"]
     embedding = embedding if is_batch else embedding.squeeze(0)
     return embedding.numpy()
+
+
+def _compute_bias_matrix():
+    overall_multiplier = CONFIG("slow.bias.overall_multiplier")
+
+    def construct_bias_direction(d):
+        bd = d["multiplier"] * (embed(d["to"]) - embed(d["from"]))
+        return overall_multiplier * bd
+
+    directions = CONFIG("slow.bias.directions")
+    if directions:
+        bs = [construct_bias_direction(d) for d in directions]
+        B = np.stack(bs, axis=-1)  # (embedding_dimension, num_vectors)
+    else:
+        B = zero()[:, None]
+
+    return B
+
+
+BIAS_MATRIX = _compute_bias_matrix()
+BIAS_PROJECTOR = np.linalg.pinv(BIAS_MATRIX)
+INTENSITY = CONFIG("slow.bias.intensity")
 
 
 def bias_coefficients(c, intensity):

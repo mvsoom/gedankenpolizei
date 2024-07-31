@@ -1,0 +1,11 @@
+```FAST (what's happening in front of you)
+{{FAST_THOUGHTS}}
+{{OPTIONAL_FRAME}}
+```
+
+```SLOW (what's on your mind)
+{{SLOW_THOUGHT}}
+```
+
+```RAW (your {{MAYBE_ASCII_ART}}inner monologue right now)
+{{RAW_THOUGHTS}}
