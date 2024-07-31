@@ -11,6 +11,8 @@ from math import exp, floor
 from sys import exit
 from time import sleep, time
 
+import pandas as pd
+
 from src import STARTTIME
 from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import Frame
@@ -81,30 +83,25 @@ def slow_stream(args, slowq):
     if args.no_slow_thoughts:
         return
 
-    from src.slow.thought import embed, random_thought  # Takes a while
+    # Cold start; takes a while to load
+    from src.slow.thought import (
+        sample_nearby_thought,
+        sample_random_thought,
+    )
 
-    thought = None
-
-    while True:
-        thought = random_thought()
-        info("Put_downwards")
-        slowq.put_downwards(thought, block=False)
-
-        info("Get_from_below")
-        slowq.get_from_below(block=True)
+    walk = sample_random_thought()
+    slowq.put_downwards(walk.iloc[-1].text, block=False)
 
     while True:
-        a = embed(raw_tape[:0])
-        b = embed(raw_tape[:])
+        start, end = slowq.get_from_below(block=True)
 
-        step = b - a
+        if args.random_slow_thoughts:
+            thought = sample_random_thought(walk)
+        else:
+            thought = sample_nearby_thought(walk, start, end)
 
-        new = sample_thought(thought, step)
-
-        slowq.put_downwards(new, block=False)
-
-        thought = new
-        raw_tape = slowq.get_from_below(block=True)
+        slowq.put_downwards(thought.iloc[0].text, block=False)
+        walk = pd.concat([walk, thought])
 
 
 def fast_thoughts_from(inputs):
@@ -242,17 +239,18 @@ def generate(args, raw_tape, slowq, fastq):
         if interrupted:
             continue
         else:
-            # At this point we've generated a complete thought without interruption and written it to `raw_tape`.
-            # Signal the SLOW stream to use this information to sample a new SLOW thought that will seed the next generation ...
-            slowq.put_upwards(raw_tape, block=False)
-            info("Generation ended naturally, updating SLOW stream")
+            # Sample a new SLOW thought ...
+            start = "".join(raw_tape[:0])
+            end = "".join(raw_tape[:])
+            slowq.put_upwards((start, end), block=False)
 
-            # ... and optionally wait for the thought to be transferred from the tape to stdout.
+            # ... and optionally wait for the thought to be transferred from the `raw_tape` to stdout.
             nbuffered = len(raw_tape[0:])
             nttft = ttft * RAW_PACE
             nwait = max(nbuffered - nttft, 0.0)
-
             wait = (nwait / RAW_PACE) * (1.0 - SLOW_PACE)
+
+            info(f"Generation completed, waiting max {wait:.1f}s")
             fastq.slumber(wait)  # Wake up on new FAST inputs
             continue
 
@@ -335,6 +333,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Disable SLOW thought stream",
+    )
+    parser.add_argument(
+        "--random-slow-thoughts",
+        action="store_true",
+        default=False,
+        help="Always sample random SLOW thoughts instead of walking the embedding space",
     )
     parser.add_argument(
         "--no-fast-thoughts",

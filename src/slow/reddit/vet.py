@@ -101,7 +101,7 @@ def main(args):
 
     if args.reference:
         rdf = pd.read_feather(args.reference)
-        reference_embeddings = np.stack(rdf["embedding"], dtype="float32")
+        reference_embeddings = np.stack(rdf["embedding"])
 
     if args.bias:
         bias_embedding = embed(args.bias)
@@ -110,7 +110,7 @@ def main(args):
         args.n = len(get_candidates(pdf, vdf))
 
     probs = weigh_subreddits(pdf, vdf)
-    embeddings = np.stack(pdf["embedding"], dtype="float32")
+    embeddings = np.stack(pdf["embedding"])
 
     def sample_post(previous_sample=None, numcandidates=200, maxtries=20, tried=0):
         if previous_sample is not None:

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from huggingface_hub import hf_hub_download
 
 from src.config import CONFIG
-from src.log import verbose
+from src.log import info
 
 load_dotenv()
 
@@ -27,7 +27,7 @@ def _load_slow_thoughts():
     )
 
     slowdf = pd.read_feather(downloaded_file_path)
-    verbose(f"Loaded {len(slowdf)} slow thoughts from {downloaded_file_path}")
+    info(f"Loaded {len(slowdf)} slow thoughts from {downloaded_file_path}")
     return slowdf
 
 

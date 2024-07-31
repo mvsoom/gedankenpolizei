@@ -54,7 +54,7 @@ slow:
   # The fractional pace of the SLOW stream (0 <= `pace` <= 1)
   # A value of 1. means the SLOW stream is running at full speed, resulting in a feverish sequence of SLOW thoughts which inhibits completing generated RAW thoughts (and thus requires more generations, which increases LLM API costs)
   # A value of 0. means the SLOW stream only advances when the current RAW thought is (almost) completed, resulting in less feverish, more coherent RAW thought
-  pace: 1.
+  pace: 0.5
   
   walk:
     max_steps: 10

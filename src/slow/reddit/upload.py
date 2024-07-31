@@ -39,7 +39,7 @@ def main(args):
     print("Anonymizing data")
     sdf.reset_index(drop=True, inplace=True)
     sdf = sdf[["post", "embedding"]]
-    sdf.rename(columns={"post": "thought"}, inplace=True)
+    sdf.rename(columns={"post": "text"}, inplace=True)
 
     print(
         f"Uploading {HF_SLOW_THOUGHTS_FILE} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
