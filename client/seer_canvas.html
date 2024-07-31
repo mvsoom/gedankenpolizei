@@ -168,7 +168,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const DISPLAY_CONTROLS = true;
 
         // Audio
-        const OSCILLATOR_VOLUME = 0.8;
+        const OSCILLATOR_VOLUME = 1.;
+        const OSCILLATOR_FREQUENCY = 123; // Hz
+        const MODULATION_FREQUENCY = .25; // Hz
+
+        const JITTER_AMOUNT = 0.01;
+        const JITTER_TIME_MSEC = 1000;
 
         // Websocket
         const WS_VIDEO_URL = 'ws://localhost:8765';
@@ -273,7 +278,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // ---------------------------------------------------------------------------
         // Setup PositionalAudio
         // ---------------------------------------------------------------------------
-        function setupPositionalAudio() {
+        function setupPositionalAudioOLD() {
             sound3 = new THREE.PositionalAudio(listener);
             oscillator = listener.context.createOscillator();
             oscillator.type = 'sine';
@@ -283,6 +288,61 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             sound3.setRefDistance(20);
             sound3.setVolume(OSCILLATOR_VOLUME);
             textMesh.add(sound3);
+        }
+
+        function setupPositionalAudio() {
+            sound3 = new THREE.PositionalAudio(listener);
+            const audioContext = listener.context;
+
+            // Create the main oscillator
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(OSCILLATOR_FREQUENCY, audioContext.currentTime);
+
+            // Create a modulator for a buzzing effect
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0.75; // Base gain value to ensure it drops to half the volume
+
+            oscillator.connect(gainNode);
+
+            const modulator = audioContext.createOscillator();
+            modulator.frequency.setValueAtTime(MODULATION_FREQUENCY, audioContext.currentTime);
+
+            const modGainNode = audioContext.createGain();
+            modGainNode.gain.value = 0.25; // Modulation depth
+
+            modulator.connect(modGainNode);
+            modGainNode.connect(gainNode.gain);
+
+            // Start the oscillators
+            oscillator.start();
+            modulator.start();
+
+            sound3.setNodeSource(gainNode);
+            sound3.setRefDistance(20);
+            sound3.setVolume(OSCILLATOR_VOLUME);
+
+            // Localize the sound to the mesh (doesn't do audio reflections and all that)
+            textMesh.add(sound3);
+
+            function normalRandom() {
+                let u = 0, v = 0;
+                while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+                while (v === 0) v = Math.random();
+                return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            }
+
+            // Apply jitter to the oscillators
+            function updateFrequency(osc, newFrequency) {
+                const currentTime = audioContext.currentTime;
+                osc.frequency.linearRampToValueAtTime(newFrequency, currentTime + JITTER_TIME_MSEC/1000);
+            }
+
+            setInterval(() => {
+                const deviation = Math.exp(normalRandom()*JITTER_AMOUNT);
+                updateFrequency(oscillator, oscillator.frequency.value*deviation);
+                updateFrequency(modulator, modulator.frequency.value*deviation);
+            }, JITTER_TIME_MSEC);
         }
 
         function toggleMute(mute) {
