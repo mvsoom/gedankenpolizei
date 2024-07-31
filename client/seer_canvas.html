@@ -9,17 +9,89 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
+        /* Styling taken from Three.js examples */
+        :root {
+            color-scheme: light dark;
+            --background-color: #fff;
+            --secondary-background-color: #f7f7f7;
+            --color-blue: #049EF4;
+            --text-color: #444;
+            --secondary-text-color: #9e9e9e;
+            --font-size: 16px;
+            --line-height: 26px;
+            --border-style: 1px solid #E8E8E8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #222;
+                --secondary-background-color: #2e2e2e;
+                --text-color: #bbb;
+                --secondary-text-color: #666;
+                --border-style: 1px solid #444;
+            }
+        }
+
         body {
             margin: 0;
             overflow: hidden;
         }
+
         canvas {
             display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #startButton {
+            font-size: calc(var(--font-size) - 1px);
+            padding: 10px 20px;
+            background-color: var(--background-color);
+            border: var(--border-style);
+            color: var(--text-color);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        #startButton:hover {
+            background-color: var(--secondary-background-color);
+        }
+
+        #infoBox {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: calc(var(--font-size) - 2px);
+            color: var(--text-color);
+            border-radius: 5px;
+            border: var(--border-style);
         }
     </style>
 </head>
 <body>
     <video id="video" autoplay playsinline style="display:none"></video>
+
+    <div id="overlay">
+        <button id="startButton">ENTER</button>
+    </div>
+
+    <div id="infoBox">
+        <p><strong>Controls:</strong></p>
+        <p>SPACEBAR: Lock/Unlock Camera</p>
+        <p>M: Mute/Unmute Sound</p>
+    </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
     <script id="vs" type="x-shader/x-vertex">
@@ -111,18 +183,32 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const textBuffer = []; // List of text lines
         let cameraLocked = false; // Flag to lock the camera
 
-        init();
+        // Variables for PositionalAudio
+        let listener, sound3, oscillator;
+        let soundMuted = false; // Flag to mute the sound
+
+        // Add event listener to start button
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', init);
 
         // ---------------------------------------------------------------------------
         // Setup scene and websockets
         // ---------------------------------------------------------------------------
         async function init() {
+            // Remove overlay after click
+            const overlay = document.getElementById('overlay');
+            overlay.remove();
+
             const container = document.createElement('div');
             document.body.appendChild(container);
 
             // Setup camera
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
             camera.position.copy(initialCameraPosition);
+
+            // Setup audio listener
+            listener = new THREE.AudioListener();
+            camera.add(listener);
 
             scene = new THREE.Scene();
             center = new THREE.Vector3();
@@ -144,13 +230,16 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             document.addEventListener('touchstart', onDocumentTouchStart, false);
             document.addEventListener('touchmove', onDocumentTouchMove, false);
 
-            // Listen for SPACEBAR to toggle camera lock
+            // Listen for SPACEBAR to toggle camera lock and "m" to toggle mute
             document.addEventListener('keydown', onDocumentKeyDown);
 
             setupWebcam();
             setupTextCanvas();
             connectWebSocketVideo();
             connectWebSocketText();
+
+            // Setup PositionalAudio
+            setupPositionalAudio();
         }
 
         function animate() {
@@ -170,6 +259,29 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
             gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
             gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
+
+            // Add sound mute control
+            gui.add({ mute: false }, 'mute').name('Mute Sound').onChange(toggleMute);
+        }
+
+        // ---------------------------------------------------------------------------
+        // Setup PositionalAudio
+        // ---------------------------------------------------------------------------
+        function setupPositionalAudio() {
+            sound3 = new THREE.PositionalAudio(listener);
+            oscillator = listener.context.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(144, sound3.context.currentTime);
+            oscillator.start(0);
+            sound3.setNodeSource(oscillator);
+            sound3.setRefDistance(20);
+            sound3.setVolume(0.5);
+            textMesh.add(sound3);
+        }
+
+        function toggleMute(mute) {
+            soundMuted = mute;
+            sound3.setVolume(soundMuted ? 0 : 0.5);
         }
 
         // ---------------------------------------------------------------------------
@@ -428,6 +540,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         function onDocumentKeyDown(event) {
             if (event.code === 'Space') {
                 cameraLocked = !cameraLocked;
+            } else if (event.code === 'KeyM') {
+                toggleMute(!soundMuted);
             }
         }
     </script>
