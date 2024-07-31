@@ -168,7 +168,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const DISPLAY_CONTROLS = true;
 
         // Audio
-        const OSCILLATOR_VOLUME = 1.;
+        const OSCILLATOR_VOLUME = 0.;
         const OSCILLATOR_FREQUENCY = 123; // Hz
         const MODULATION_FREQUENCY = .25; // Hz
 
@@ -192,7 +192,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         let cameraLocked = false; // Flag to lock the camera
 
         // Variables for PositionalAudio
-        let listener, sound3, oscillator;
+        let listener, sound3, oscillator, pinkNoise;
         let soundMuted = false; // Flag to mute the sound
 
         // Add event listener to start button
@@ -201,6 +201,41 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
         // Request webcam permission immediately
         const webcamstream = navigator.mediaDevices.getUserMedia({ video: true });
+
+        function normalRandom() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function createPinkNoise(audioContext) {
+            const bufferSize = 4096;
+            const node = audioContext.createScriptProcessor(bufferSize, 1, 1);
+            let b0, b1, b2, b3, b4, b5, b6;
+            b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
+
+            node.onaudioprocess = function(e) {
+                const output = e.outputBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = normalRandom();
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    output[i] *= 0.11; // (roughly) compensate for gain
+                    b6 = white * 0.115926;
+
+                    output[i] /= 400; // Normalize the pink noise
+                    output[i] /= Math.sqrt(1 - i/bufferSize); // Fade out the pink noise
+                }
+            };
+
+            return node;
+        }
 
         // ---------------------------------------------------------------------------
         // Setup scene and websockets
@@ -249,8 +284,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             connectWebSocketVideo();
             connectWebSocketText();
 
-            // Setup PositionalAudio
-            setupPositionalAudio();
+            pinkNoise = createPinkNoise(listener.context);
         }
 
         function animate() {
@@ -273,81 +307,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
             // Add sound mute control
             gui.add({ mute: false }, 'mute').name('Mute Sound').onChange(toggleMute);
-        }
-
-        // ---------------------------------------------------------------------------
-        // Setup PositionalAudio
-        // ---------------------------------------------------------------------------
-        function setupPositionalAudioOLD() {
-            sound3 = new THREE.PositionalAudio(listener);
-            oscillator = listener.context.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(144, sound3.context.currentTime);
-            oscillator.start(0);
-            sound3.setNodeSource(oscillator);
-            sound3.setRefDistance(20);
-            sound3.setVolume(OSCILLATOR_VOLUME);
-            textMesh.add(sound3);
-        }
-
-        function setupPositionalAudio() {
-            sound3 = new THREE.PositionalAudio(listener);
-            const audioContext = listener.context;
-
-            // Create the main oscillator
-            const oscillator = audioContext.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(OSCILLATOR_FREQUENCY, audioContext.currentTime);
-
-            // Create a modulator for a buzzing effect
-            const gainNode = audioContext.createGain();
-            gainNode.gain.value = 0.75; // Base gain value to ensure it drops to half the volume
-
-            oscillator.connect(gainNode);
-
-            const modulator = audioContext.createOscillator();
-            modulator.frequency.setValueAtTime(MODULATION_FREQUENCY, audioContext.currentTime);
-
-            const modGainNode = audioContext.createGain();
-            modGainNode.gain.value = 0.25; // Modulation depth
-
-            modulator.connect(modGainNode);
-            modGainNode.connect(gainNode.gain);
-
-            // Start the oscillators
-            oscillator.start();
-            modulator.start();
-
-            sound3.setNodeSource(gainNode);
-            sound3.setRefDistance(20);
-            sound3.setVolume(OSCILLATOR_VOLUME);
-
-            // Localize the sound to the mesh (doesn't do audio reflections and all that)
-            textMesh.add(sound3);
-
-            function normalRandom() {
-                let u = 0, v = 0;
-                while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
-                while (v === 0) v = Math.random();
-                return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-            }
-
-            // Apply jitter to the oscillators
-            function updateFrequency(osc, newFrequency) {
-                const currentTime = audioContext.currentTime;
-                osc.frequency.linearRampToValueAtTime(newFrequency, currentTime + JITTER_TIME_MSEC/1000);
-            }
-
-            setInterval(() => {
-                const deviation = Math.exp(normalRandom()*JITTER_AMOUNT);
-                updateFrequency(oscillator, oscillator.frequency.value*deviation);
-                updateFrequency(modulator, modulator.frequency.value*deviation);
-            }, JITTER_TIME_MSEC);
-        }
-
-        function toggleMute(mute) {
-            soundMuted = mute;
-            sound3.setVolume(soundMuted ? 0 : OSCILLATOR_VOLUME);
         }
 
         // ---------------------------------------------------------------------------
@@ -468,6 +427,20 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // ---------------------------------------------------------------------------
         // Setup retrying websocket for binary text in stream
         // ---------------------------------------------------------------------------
+        
+        
+        function playClickSound() {
+            const audioContext = listener.context;
+
+            // Connect pink noise to the destination
+            pinkNoise.connect(audioContext.destination);
+
+            // Start and stop the pink noise after a short duration
+            setTimeout(() => {
+                pinkNoise.disconnect();
+            }, 80);
+        }
+
         function connectWebSocketText() {
             const socket = new WebSocket(WS_TEXT_URL);
             socket.binaryType = 'arraybuffer';
@@ -497,6 +470,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                         }
                     });
                     updateTextCanvas();
+                    if (text.trim().length !== 0)
+                        playClickSound(); 
                 }
             };
 
