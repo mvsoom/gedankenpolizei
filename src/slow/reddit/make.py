@@ -1,20 +1,11 @@
 """Make the seed posts for the SLOW stream from raw posts and vetting information and upload to Hugging Face"""
 
-import os
-from io import BytesIO
 from sys import exit
 
 import pandas as pd
-from dotenv import load_dotenv
-from huggingface_hub import HfApi
 
-from src.config import CONFIG, ConfigArgumentParser
-
-load_dotenv()
-
-HF_API = HfApi()
-HF_REPO_ID = CONFIG("slow.reddit.hf_repo_id")
-HF_SLOW_THOUGHTS_FILE = CONFIG("slow.reddit.hf_slow_thoughts_file")
+from src.config import ConfigArgumentParser
+from src.slow.df import upload_slow_thoughts
 
 
 def main(args):
@@ -41,23 +32,7 @@ def main(args):
     sdf = sdf[["post", "embedding"]]
     sdf.rename(columns={"post": "text"}, inplace=True)
 
-    print(
-        f"Uploading {HF_SLOW_THOUGHTS_FILE} to Hugging Face using `HF_TOKEN_WRITE` from .env file"
-    )
-    buffer = BytesIO()
-    sdf.to_feather(buffer, compression="zstd")
-
-    HF_TOKEN_WRITE = os.getenv("HF_TOKEN_WRITE")
-    if not HF_TOKEN_WRITE:
-        raise ValueError("HF_TOKEN_WRITE not found in .env file")
-
-    HF_API.upload_file(
-        path_or_fileobj=buffer,
-        path_in_repo=HF_SLOW_THOUGHTS_FILE,
-        repo_id=HF_REPO_ID,
-        repo_type="dataset",
-        token=HF_TOKEN_WRITE,
-    )
+    upload_slow_thoughts(sdf, verbose=True)
 
     return 0
 

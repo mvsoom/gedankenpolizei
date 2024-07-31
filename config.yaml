@@ -29,7 +29,7 @@ slow:
 
     vet_prompt_file: data/prompts/slow/vet.prompt
     hf_repo_id: mvsoom/gedankenpolizei
-    hf_slow_thoughts_file: slow_thoughts.feather
+    hf_slow_thoughts_file: slow_thoughts_{{EMBED_MODEL_BASENAME}}.feather
 
   bias:
     # The `intensity` parameter in [0, 1] controls the amount of bias in the walk in SLOW space

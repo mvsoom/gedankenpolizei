@@ -33,7 +33,7 @@ def nearest_neighbor(query, embeddings=EMBEDDINGS):
 
     Note: assuming all embeddings are normalized, we can minimize distance by maximizing dot product"""
     dp = np.dot(embeddings, query)
-    return SLOWDF.iloc[np.argmax(dp)]
+    return SLOWDF.iloc[[np.argmax(dp)]]
 
 
 def sample_nearby_thought(walk, start, end):
