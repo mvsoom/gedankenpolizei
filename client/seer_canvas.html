@@ -538,9 +538,11 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function onDocumentKeyDown(event) {
+            console.log(event.code, event.key);
             if (event.code === 'Space') {
                 cameraLocked = !cameraLocked;
-            } else if (event.code === 'KeyM') {
+            } else if (event.key === 'm') {
+                
                 toggleMute(!soundMuted);
             }
         }
