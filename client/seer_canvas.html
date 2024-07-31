@@ -167,6 +167,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
         const DISPLAY_CONTROLS = true;
 
+        // Audio
+        const OSCILLATOR_VOLUME = 0.8;
+
         // Websocket
         const WS_VIDEO_URL = 'ws://localhost:8765';
         const WS_VIDEO_FPS = 100; // msec
@@ -190,6 +193,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Add event listener to start button
         const startButton = document.getElementById('startButton');
         startButton.addEventListener('click', init);
+
+        // Request webcam permission immediately
+        const webcamstream = navigator.mediaDevices.getUserMedia({ video: true });
 
         // ---------------------------------------------------------------------------
         // Setup scene and websockets
@@ -233,7 +239,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Listen for SPACEBAR to toggle camera lock and "m" to toggle mute
             document.addEventListener('keydown', onDocumentKeyDown);
 
-            setupWebcam();
+            setupWebcam(webcamstream);
             setupTextCanvas();
             connectWebSocketVideo();
             connectWebSocketText();
@@ -275,21 +281,21 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             oscillator.start(0);
             sound3.setNodeSource(oscillator);
             sound3.setRefDistance(20);
-            sound3.setVolume(0.5);
+            sound3.setVolume(OSCILLATOR_VOLUME);
             textMesh.add(sound3);
         }
 
         function toggleMute(mute) {
             soundMuted = mute;
-            sound3.setVolume(soundMuted ? 0 : 0.5);
+            sound3.setVolume(soundMuted ? 0 : OSCILLATOR_VOLUME);
         }
 
         // ---------------------------------------------------------------------------
         // Setup webcam stream and transformation to 3D
         // ---------------------------------------------------------------------------
-        async function setupWebcam() {
+        async function setupWebcam(webcamstream) {
             const video = document.getElementById('video');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await webcamstream
             video.srcObject = stream;
 
             video.onloadedmetadata = () => {
@@ -538,11 +544,11 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function onDocumentKeyDown(event) {
-            console.log(event.code, event.key);
             if (event.code === 'Space') {
                 cameraLocked = !cameraLocked;
+                // Log the camera position when locking/unlocking
+                console.log('Camera (un)locked at:', camera.position);
             } else if (event.key === 'm') {
-                
                 toggleMute(!soundMuted);
             }
         }
