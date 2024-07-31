@@ -89,8 +89,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
     <div id="infoBox">
         <p><strong>Controls:</strong></p>
-        <p>SPACEBAR: Lock/Unlock Camera</p>
-        <p>M: Mute/Unmute Sound</p>
+        <p>SPACE: (un)lock camera</p>
+        <p>M: (un)mute</p>
+        <p>C: toggle controls</p>
     </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
@@ -149,6 +150,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Scene
         const INITIAL_CAMERA_Z = 1500;
 
+        // Controls GUI
+        let gui; // Declare gui globally
+        let controlsVisible = false; // Track the visibility of controls
+
         // Webcam stream
         const NEAR_CLIPPING = 2012;
         const FAR_CLIPPING = 4000;
@@ -165,10 +170,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const TEXT_OFFSET = 50;
         const FADE_HEIGHT = 100;
         const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
-        const DISPLAY_CONTROLS = true;
 
         // Audio
-        const CLICK_SOUND_DURATION = 80;
+        const AUDIO_GAIN = 0.5;
+        const CLICK_SOUND_DURATION = 80; // msec
 
         // Websocket
         const WS_VIDEO_URL = 'ws://localhost:8765';
@@ -187,8 +192,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         let cameraLocked = false; // Flag to lock the camera
 
         // Variables for PositionalAudio
-        let listener, sound3, oscillator, pinkNoise;
-        let soundMuted = false; // Flag to mute the sound
+        let listener, pinkNoise, gainNode, currentGain = AUDIO_GAIN;
+        let isMuted = false; // Flag to mute the sound
 
         // Add event listener to start button
         const startButton = document.getElementById('startButton');
@@ -212,11 +217,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
             camera.position.copy(initialCameraPosition);
 
-            // Setup audio listener
-            listener = new THREE.AudioListener();
-            camera.add(listener);
-            pinkNoise = createPinkNoise(listener.context);
-
             // Setup scene and renderer
             scene = new THREE.Scene();
             center = new THREE.Vector3();
@@ -228,23 +228,27 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             renderer.setAnimationLoop(animate);
             container.appendChild(renderer.domElement);
 
-            mouse = new THREE.Vector3(0, 0, 1);
-
             // Handle user input
+            mouse = new THREE.Vector3(0, 0, 1);
             document.addEventListener('mousemove', onDocumentMouseMove);
             document.addEventListener('mouseleave', onDocumentMouseLeave);
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('wheel', onDocumentMouseWheel);
+
             document.addEventListener('touchstart', onDocumentTouchStart, false);
             document.addEventListener('touchmove', onDocumentTouchMove, false);
 
-            // Listen for SPACEBAR to toggle camera lock and "m" to toggle mute
             document.addEventListener('keydown', onDocumentKeyDown);
+
+            // Hide the GUI by default
+            gui = new GUI();
+            gui.hide();
 
             setupWebcam(webcamstream);
             setupTextCanvas();
             connectWebSocketVideo();
             connectWebSocketText();
+            setupAudio();
         }
 
         function animate() {
@@ -258,6 +262,25 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // ---------------------------------------------------------------------------
         // Audio
         // ---------------------------------------------------------------------------
+        function setupAudio() {
+            listener = new THREE.AudioListener();
+            camera.add(listener);
+            pinkNoise = createPinkNoise(listener.context);
+
+            // Create GainNode to control pinkNoise volume
+            gainNode = listener.context.createGain();
+            gainNode.gain.value = currentGain;
+            pinkNoise.connect(gainNode).connect(listener.context.destination);
+
+            // Add gain control to Controls GUI
+            const gainControl = gui.add(gainNode.gain, 'value', 0, 1, 0.01).name('Volume').listen();
+            gainControl.onChange((value) => {
+                if (!isMuted) {
+                    currentGain = value; // Update current gain value when not muted
+                }
+            });
+        }
+
         function normalRandom() {
             let u = 0, v = 0;
             while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
@@ -294,35 +317,21 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function playClickSound() {
-            const audioContext = listener.context;
-
-            // Connect pink noise to the destination
-            pinkNoise.connect(audioContext.destination);
-
             // Start and stop the pink noise after a short duration
+            pinkNoise.connect(gainNode);
             setTimeout(() => {
                 pinkNoise.disconnect();
             }, CLICK_SOUND_DURATION);
         }
 
         function toggleMute(mute) {
-            soundMuted = mute;
-            // WHAT TO DO HERE?
-            //sound.setVolume(soundMuted ? 0 : 0.5);
-        }
-
-        // ---------------------------------------------------------------------------
-        // Optional control setup (if DISPLAY_CONTROLS)
-        // ---------------------------------------------------------------------------
-        function setupGUI(material) {
-            const gui = new GUI();
-            gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
-            gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
-            gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
-            gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
-
-            // Add sound mute control
-            gui.add({ mute: false }, 'mute').name('Mute Sound').onChange(toggleMute);
+            if (mute) {
+                currentGain = gainNode.gain.value; // Remember the current gain
+                gainNode.gain.value = 0;
+            } else {
+                gainNode.gain.value = currentGain; // Restore the remembered gain
+            }
+            isMuted = mute;
         }
 
         // ---------------------------------------------------------------------------
@@ -371,8 +380,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 const mesh = new THREE.Points(geometry, material);
                 scene.add(mesh);
 
-                if (DISPLAY_CONTROLS)
-                    setupGUI(material);
+                gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
+                gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
+                gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
+                gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
             };
         }
 
@@ -583,10 +594,16 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         function onDocumentKeyDown(event) {
             if (event.code === 'Space') {
                 cameraLocked = !cameraLocked;
-                // Log the camera position when locking/unlocking
                 console.log('Camera (un)locked at:', camera.position);
             } else if (event.key === 'm') {
-                toggleMute(!soundMuted);
+                toggleMute(!isMuted);
+            } else if (event.key === 'c') {
+                controlsVisible = !controlsVisible;
+                if (controlsVisible) {
+                    gui.show();
+                } else {
+                    gui.hide();
+                }
             }
         }
     </script>
