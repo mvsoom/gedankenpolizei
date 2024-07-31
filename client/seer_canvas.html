@@ -103,13 +103,13 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_URL = 'ws://localhost:8766';
         const WS_TEXT_RETRY = 500; // msec
 
-
         let scene, camera, renderer;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(0, 0, INITIAL_CAMERA_Z);
         let targetCameraPosition = initialCameraPosition.clone();
         let textMesh;
         const textBuffer = []; // List of text lines
+        let cameraLocked = false; // Flag to lock the camera
 
         init();
 
@@ -120,7 +120,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             const container = document.createElement('div');
             document.body.appendChild(container);
 
-            //Setup camera
+            // Setup camera
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
             camera.position.copy(initialCameraPosition);
 
@@ -144,9 +144,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             document.addEventListener('touchstart', onDocumentTouchStart, false);
             document.addEventListener('touchmove', onDocumentTouchMove, false);
 
-            if (DISPLAY_CONTROLS) {
-                setupGUI();
-            }
+            // Listen for SPACEBAR to toggle camera lock
+            document.addEventListener('keydown', onDocumentKeyDown);
 
             setupWebcam();
             setupTextCanvas();
@@ -155,28 +154,22 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function animate() {
-            camera.position.lerp(targetCameraPosition, 0.05);
-            camera.lookAt(center);
+            if (!cameraLocked) {
+                camera.position.lerp(targetCameraPosition, 0.05);
+                camera.lookAt(center);
+            }
             renderer.render(scene, camera);
         }
 
         // ---------------------------------------------------------------------------
         // Optional control setup (if DISPLAY_CONTROLS)
         // ---------------------------------------------------------------------------
-        function setupGUI() {
+        function setupGUI(material) {
             const gui = new GUI();
-            gui.add({ value: NEAR_CLIPPING }, 'value', 1, 10000, 1.0).name('nearClipping').onChange((value) => {
-                mesh.material.uniforms.nearClipping.value = value;
-            });
-            gui.add({ value: FAR_CLIPPING }, 'value', 1, 10000, 1.0).name('farClipping').onChange((value) => {
-                mesh.material.uniforms.farClipping.value = value;
-            });
-            gui.add({ value: POINT_SIZE }, 'value', 1, 10, 1.0).name('pointSize').onChange((value) => {
-                mesh.material.uniforms.pointSize.value = value;
-            });
-            gui.add({ value: Z_OFFSET }, 'value', 0, 4000, 1.0).name('zOffset').onChange((value) => {
-                mesh.material.uniforms.zOffset.value = value;
-            });
+            gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
+            gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
+            gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
+            gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
         }
 
         // ---------------------------------------------------------------------------
@@ -224,7 +217,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
                 const mesh = new THREE.Points(geometry, material);
                 scene.add(mesh);
-                };
+
+                if (DISPLAY_CONTROLS)
+                    setupGUI(material);
+            };
         }
 
         // ---------------------------------------------------------------------------
@@ -396,13 +392,17 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function onDocumentMouseMove(event) {
-            mouse.x = (event.clientX - window.innerWidth / 2) * 8;
-            mouse.y = (event.clientY - window.innerHeight / 2) * 8;
-            targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            if (!cameraLocked) {
+                mouse.x = (event.clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            }
         }
 
         function onDocumentMouseLeave(event) {
-            targetCameraPosition.copy(initialCameraPosition);
+            if (!cameraLocked) {
+                targetCameraPosition.copy(initialCameraPosition);
+            }
         }
 
         function onDocumentMouseWheel(event) {
@@ -410,7 +410,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function onDocumentTouchStart(event) {
-            if (event.touches.length === 1) {
+            if (event.touches.length === 1 && !cameraLocked) {
                 mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
                 mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
                 targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
@@ -418,10 +418,16 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function onDocumentTouchMove(event) {
-            if (event.touches.length === 1) {
+            if (event.touches.length === 1 && !cameraLocked) {
                 mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
                 mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
                 targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            }
+        }
+
+        function onDocumentKeyDown(event) {
+            if (event.code === 'Space') {
+                cameraLocked = !cameraLocked;
             }
         }
     </script>
