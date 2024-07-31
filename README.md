@@ -29,3 +29,4 @@ SHOWCASE:
 - terminal mode
   * retro-term
   * lolcat
+  * --ascii switch
