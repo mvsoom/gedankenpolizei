@@ -168,12 +168,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const DISPLAY_CONTROLS = true;
 
         // Audio
-        const OSCILLATOR_VOLUME = 0.;
-        const OSCILLATOR_FREQUENCY = 123; // Hz
-        const MODULATION_FREQUENCY = .25; // Hz
-
-        const JITTER_AMOUNT = 0.01;
-        const JITTER_TIME_MSEC = 1000;
+        const CLICK_SOUND_DURATION = 80;
 
         // Websocket
         const WS_VIDEO_URL = 'ws://localhost:8765';
@@ -202,6 +197,67 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Request webcam permission immediately
         const webcamstream = navigator.mediaDevices.getUserMedia({ video: true });
 
+        // ---------------------------------------------------------------------------
+        // Setup scene and websockets
+        // ---------------------------------------------------------------------------
+        async function init() {
+            // Remove overlay after click
+            const overlay = document.getElementById('overlay');
+            overlay.remove();
+
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            // Setup camera
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.copy(initialCameraPosition);
+
+            // Setup audio listener
+            listener = new THREE.AudioListener();
+            camera.add(listener);
+            pinkNoise = createPinkNoise(listener.context);
+
+            // Setup scene and renderer
+            scene = new THREE.Scene();
+            center = new THREE.Vector3();
+            center.z = -1000;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setAnimationLoop(animate);
+            container.appendChild(renderer.domElement);
+
+            mouse = new THREE.Vector3(0, 0, 1);
+
+            // Handle user input
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            document.addEventListener('mouseleave', onDocumentMouseLeave);
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('wheel', onDocumentMouseWheel);
+            document.addEventListener('touchstart', onDocumentTouchStart, false);
+            document.addEventListener('touchmove', onDocumentTouchMove, false);
+
+            // Listen for SPACEBAR to toggle camera lock and "m" to toggle mute
+            document.addEventListener('keydown', onDocumentKeyDown);
+
+            setupWebcam(webcamstream);
+            setupTextCanvas();
+            connectWebSocketVideo();
+            connectWebSocketText();
+        }
+
+        function animate() {
+            if (!cameraLocked) {
+                camera.position.lerp(targetCameraPosition, 0.05);
+                camera.lookAt(center);
+            }
+            renderer.render(scene, camera);
+        }
+
+        // ---------------------------------------------------------------------------
+        // Audio
+        // ---------------------------------------------------------------------------
         function normalRandom() {
             let u = 0, v = 0;
             while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
@@ -237,62 +293,22 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             return node;
         }
 
-        // ---------------------------------------------------------------------------
-        // Setup scene and websockets
-        // ---------------------------------------------------------------------------
-        async function init() {
-            // Remove overlay after click
-            const overlay = document.getElementById('overlay');
-            overlay.remove();
+        function playClickSound() {
+            const audioContext = listener.context;
 
-            const container = document.createElement('div');
-            document.body.appendChild(container);
+            // Connect pink noise to the destination
+            pinkNoise.connect(audioContext.destination);
 
-            // Setup camera
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
-            camera.position.copy(initialCameraPosition);
-
-            // Setup audio listener
-            listener = new THREE.AudioListener();
-            camera.add(listener);
-
-            scene = new THREE.Scene();
-            center = new THREE.Vector3();
-            center.z = -1000;
-
-            renderer = new THREE.WebGLRenderer();
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setAnimationLoop(animate);
-            container.appendChild(renderer.domElement);
-
-            mouse = new THREE.Vector3(0, 0, 1);
-
-            // Handle user input
-            document.addEventListener('mousemove', onDocumentMouseMove);
-            document.addEventListener('mouseleave', onDocumentMouseLeave);
-            window.addEventListener('resize', onWindowResize);
-            document.addEventListener('wheel', onDocumentMouseWheel);
-            document.addEventListener('touchstart', onDocumentTouchStart, false);
-            document.addEventListener('touchmove', onDocumentTouchMove, false);
-
-            // Listen for SPACEBAR to toggle camera lock and "m" to toggle mute
-            document.addEventListener('keydown', onDocumentKeyDown);
-
-            setupWebcam(webcamstream);
-            setupTextCanvas();
-            connectWebSocketVideo();
-            connectWebSocketText();
-
-            pinkNoise = createPinkNoise(listener.context);
+            // Start and stop the pink noise after a short duration
+            setTimeout(() => {
+                pinkNoise.disconnect();
+            }, CLICK_SOUND_DURATION);
         }
 
-        function animate() {
-            if (!cameraLocked) {
-                camera.position.lerp(targetCameraPosition, 0.05);
-                camera.lookAt(center);
-            }
-            renderer.render(scene, camera);
+        function toggleMute(mute) {
+            soundMuted = mute;
+            // WHAT TO DO HERE?
+            //sound.setVolume(soundMuted ? 0 : 0.5);
         }
 
         // ---------------------------------------------------------------------------
@@ -427,20 +443,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // ---------------------------------------------------------------------------
         // Setup retrying websocket for binary text in stream
         // ---------------------------------------------------------------------------
-        
-        
-        function playClickSound() {
-            const audioContext = listener.context;
-
-            // Connect pink noise to the destination
-            pinkNoise.connect(audioContext.destination);
-
-            // Start and stop the pink noise after a short duration
-            setTimeout(() => {
-                pinkNoise.disconnect();
-            }, 80);
-        }
-
         function connectWebSocketText() {
             const socket = new WebSocket(WS_TEXT_URL);
             socket.binaryType = 'arraybuffer';
