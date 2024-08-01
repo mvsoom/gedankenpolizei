@@ -352,7 +352,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             
 
             // Add gain control to Controls GUI
-            const gainControl = gui.add(gainNode.gain, 'value', 0, 1, 0.01).name('Volume').listen();
+            const audioFolder = gui.addFolder('Audio');
+
+            const gainControl = audioFolder.add(gainNode.gain, 'value', 0, 1, 0.01).name('Volume').listen();
             gainControl.onChange((value) => {
                 if (!isMuted) {
                     currentGain = value; // Update current gain value when not muted
@@ -459,10 +461,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 const mesh = new THREE.Points(geometry, material);
                 scene.add(mesh);
 
-                gui.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('nearClipping');
-                gui.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('farClipping');
-                gui.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('pointSize');
-                gui.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('zOffset');
+                const webcamFolder = gui.addFolder('Webcam');
+
+                webcamFolder.add(material.uniforms.nearClipping, 'value', 1, 10000, 1.0).name('Near Clipping');
+                webcamFolder.add(material.uniforms.farClipping, 'value', 1, 10000, 1.0).name('Far Clipping');
+                webcamFolder.add(material.uniforms.pointSize, 'value', 1, 10, 1.0).name('Point Size');
+                webcamFolder.add(material.uniforms.zOffset, 'value', 0, 4000, 1.0).name('Z Offset');
             };
         }
 
