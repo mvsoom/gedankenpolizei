@@ -74,6 +74,7 @@ def raw_stream(args, raw_tape):
         if not args.roll_tape:
             print(c, end="", flush=True)
         else:
+            print(c, end="", file=sys.stderr, flush=True)
             print_rolling_tape(raw_tape)
 
         last = time()
@@ -350,7 +351,7 @@ if __name__ == "__main__":
         "--roll-tape",
         action="store_true",
         default=False,
-        help="Output the rolling tape of RAW thoughts. Requires a terminal that supports ANSI escape codes",
+        help="Output the rolling tape of RAW thoughts to stdout and redirect normal output to stderr. Requires a terminal that supports ANSI escape codes",
     )
 
     args = parser.parse_args()

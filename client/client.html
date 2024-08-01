@@ -101,10 +101,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
     </div>
 
     <div id="infoBox">
-        <p class="centered"><strong>Controls</strong></p>
+        <p class="centered"><strong>gedankenpolizei</strong></p>
         <p class="aligned">[SPACE] (un)lock camera</p>
-        <p class="aligned">    [M] (un)mute</p>
         <p class="aligned">    [C] toggle controls</p>
+        <p class="aligned">    [M] (un)mute</p>
     </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
@@ -245,7 +245,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             center = new THREE.Vector3();
             center.z = -1000;
 
-            renderer = new THREE.WebGLRenderer();
+            renderer = renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setAnimationLoop(animate);
@@ -681,6 +681,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             if (event.code === 'Space') {
                 cameraLocked = !cameraLocked;
                 console.log('Camera (un)locked at:', camera.position);
+            } if (event.code === 'Delete') {
+                textBuffer.length = 0;
+                updateTextCanvas();
             } else if (event.key === 'm') {
                 toggleMute(!isMuted);
             } else if (event.key === 'c') {
