@@ -88,10 +88,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
     </div>
 
     <div id="infoBox">
-        <p class="center"><strong>Controls:</strong></p>
-        <p>[SPACE] (un)lock camera</p>
-        <p>[M] (un)mute</p>
-        <p>[C] toggle controls</p>
+        <p><strong>Controls:</strong></p>
+        <p>SPACE: (un)lock camera</p>
+        <p>M: (un)mute</p>
+        <p>C: toggle controls</p>
     </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
@@ -144,7 +144,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+        import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
 
         // ---------------------------------------------------------------------------
         // Settings
@@ -175,7 +178,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
 
         // Audio
-        const AUDIO_GAIN = 0.9;
+        const AUDIO_GAIN = 0.5;
         const CLICK_SOUND_DURATION = 80; // msec
 
         // Websocket
@@ -186,7 +189,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_URL = 'ws://localhost:8766';
         const WS_TEXT_RETRY = 500; // msec
 
-        let scene, camera, renderer, composer, bloomPass;
+        let scene, camera, renderer, composer, bloomPass, effectSobel;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(0, 0, INITIAL_CAMERA_Z);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -235,6 +238,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             composer = new EffectComposer(renderer);
             composer.addPass(new RenderPass(scene, camera));
 
+            // Bloom pass
             bloomPass = new UnrealBloomPass(
                 new THREE.Vector2(window.innerWidth, window.innerHeight),
                 1.5, // Strength
@@ -242,6 +246,16 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 0.85 // Threshold
             );
             composer.addPass(bloomPass);
+
+            // Color to grayscale conversion
+            const effectGrayScale = new ShaderPass(LuminosityShader);
+            composer.addPass(effectGrayScale);
+
+            // Sobel operator
+            effectSobel = new ShaderPass(SobelOperatorShader);
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
+            composer.addPass(effectSobel);
 
             // Handle user input
             mouse = new THREE.Vector3(0, 0, 1);
@@ -265,6 +279,11 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             bloomFolder.add(bloomPass, 'radius', 0, 1, 0.01).name('Radius');
             bloomFolder.add(bloomPass, 'threshold', 0, 1, 0.01).name('Threshold');
             bloomFolder.open();
+
+            // Add Sobel edge detection enable/disable control to GUI
+            const sobelFolder = gui.addFolder('Sobel Edge Detection');
+            sobelFolder.add(effectSobel, 'enabled').name('Enable');
+            sobelFolder.open();
 
             setupWebcam(webcamstream);
             setupTextCanvas();
@@ -578,6 +597,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight); // Update composer size
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
         }
 
         function onDocumentMouseMove(event) {

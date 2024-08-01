@@ -88,10 +88,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
     </div>
 
     <div id="infoBox">
-        <p class="center"><strong>Controls:</strong></p>
-        <p>[SPACE] (un)lock camera</p>
-        <p>[M] (un)mute</p>
-        <p>[C] toggle controls</p>
+        <p><strong>Controls:</strong></p>
+        <p>SPACE: (un)lock camera</p>
+        <p>M: (un)mute</p>
+        <p>C: toggle controls</p>
     </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
@@ -175,7 +175,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
 
         // Audio
-        const AUDIO_GAIN = 0.9;
+        const AUDIO_GAIN = 0.5;
         const CLICK_SOUND_DURATION = 80; // msec
 
         // Websocket

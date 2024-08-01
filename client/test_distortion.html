@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Lens distortion WebGL sample using three.js. Giliam de Carpentier, 2015. BSD licensed.</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            margin: 0px;
+            background-color: #000000;
+            overflow: hidden;
+        }
+
+        #info {
+            position: absolute;
+            top: 0px;
+            width: 100%;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        #info a:link {
+            color: white;
+        }
+
+        #info a:visited {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Lens distortion WebGL sample using three.js. Giliam de Carpentier, 2015. BSD licensed. See <a href="http://www.decarpentier.nl/lens-distortion" target="_blank">www.decarpentier.nl/lens-distortion</a> for more details.</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/libs/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/shaders/CopyShader.js"></script>
+    <script>
+        let camera, controls, renderer, composer;
+        let updateDistortionEffect = function() {};
+
+        init();
+        animate();
+
+        function init() {
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            window.addEventListener('resize', onWindowResize, false);
+
+            camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 1, 1000000);
+            camera.position.z = 800;
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            scene = buildScene();
+
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(new THREE.RenderPass(scene, camera));
+
+            var effect = new THREE.ShaderPass(getDistortionShaderDefinition());
+            composer.addPass(effect);
+            effect.renderToScreen = true;
+
+            setupDistortionEffectAndGUI(effect);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            composer.render();
+            controls.update();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            updateDistortionEffect();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupDistortionEffectAndGUI(effect) {
+            var guiParameters = {
+                dist_coeff_0: 0.0,
+                dist_coeff_1: 0.0,
+                dist_coeff_2: 0.0,
+                dist_coeff_3: 0.0,
+            };
+
+            updateDistortionEffect = function() {
+                effect.uniforms["dist_coeff_0"].value = guiParameters.dist_coeff_0;
+                effect.uniforms["dist_coeff_1"].value = guiParameters.dist_coeff_1;
+                effect.uniforms["dist_coeff_2"].value = guiParameters.dist_coeff_2;
+                effect.uniforms["dist_coeff_3"].value = guiParameters.dist_coeff_3;
+            };
+
+            updateDistortionEffect();
+
+            var gui = new dat.GUI({ width: 320 });
+            gui.add(guiParameters, "dist_coeff_0", 0.0, 10, 0.1).onChange(updateDistortionEffect);
+            gui.add(guiParameters, "dist_coeff_1", 0.0, 10, 0.1).onChange(updateDistortionEffect);
+            gui.add(guiParameters, "dist_coeff_2", 0.0, 10, 0.1).onChange(updateDistortionEffect);
+            gui.add(guiParameters, "dist_coeff_3", 0.0, 10, 0.1).onChange(updateDistortionEffect);
+        }
+
+        function buildScene() {
+            scene = new THREE.Scene();
+
+            object = new THREE.Object3D();
+            scene.add(object);
+
+            for (var x = -1; x <= 1; x++) {
+                for (var y = -1; y <= 1; y++) {
+                    for (var z = -1; z <= 1; z++) {
+                        var mesh = generateCubeMesh(1);
+                        mesh.position.set(160 * x, 160 * y, 160 * z);
+                        object.add(mesh);
+                    }
+                }
+            }
+
+            for (var x = -9; x <= 9; x += 3) {
+                for (var z = -9; z <= 9; z += 3) {
+                    var mesh = generateCubeMesh(Math.min(1, Math.max(0, (200 - x * x - z * z) / 100 * (x * x + z * z + 15) / 120)));
+                    mesh.position.set(160 * x, -900, 160 * z);
+                    mesh.scale.set(3, 0.08, 3);
+                    object.add(mesh);
+                }
+            }
+
+            for (var x = -1; x <= 1; x += 2) {
+                for (var z = -1; z <= 1; z += 2) {
+                    var mesh = generateCubeMesh(1);
+                    mesh.position.set(1440 * x, 0, 1440 * z);
+                    mesh.scale.set(3, 3, 3);
+                    object.add(mesh);
+                }
+            }
+
+            var path = "cube/";
+            var format = '.jpg';
+            var urls = [
+                path + 'posx' + format, path + 'negx' + format,
+                path + 'posy' + format, path + 'negy' + format,
+                path + 'posz' + format, path + 'negz' + format
+            ];
+            var skyTextureCube = new THREE.CubeTextureLoader().load(urls);
+            skyTextureCube.format = THREE.RGBFormat;
+
+            var skyCubeShader = THREE.ShaderLib["cube"];
+            skyCubeShader.uniforms["tCube"].value = skyTextureCube;
+
+            var material = new THREE.ShaderMaterial({
+                fragmentShader: skyCubeShader.fragmentShader,
+                vertexShader: skyCubeShader.vertexShader,
+                uniforms: skyCubeShader.uniforms,
+                side: THREE.BackSide
+            });
+
+            var skyCubeMesh = new THREE.Mesh(new THREE.BoxGeometry(100000, 100000, 100000), material);
+            scene.add(skyCubeMesh);
+
+            var light = new THREE.DirectionalLight(0xFFEEBB);
+            light.position.set(0, 0.5, 1);
+            scene.add(light);
+
+            light = new THREE.DirectionalLight(0x223333);
+            light.position.set(1, -.15, -0.22);
+            scene.add(light);
+
+            light = new THREE.DirectionalLight(0x223333);
+            light.position.set(-1, -.15, -0.22);
+            scene.add(light);
+
+            return scene;
+        }
+
+        function generateCubeMesh(intensity) {
+            var randomColor = Math.round(intensity * (128 + 127 * Math.random())) * 0x010000 +
+                Math.round(intensity * (128 + 127 * Math.random())) * 0x000100 +
+                Math.round(intensity * (128 + 127 * Math.random())) * 0x000001;
+
+            var material = new THREE.MeshLambertMaterial({
+                color: randomColor,
+                flatShading: true,
+            });
+
+            var geometry = new THREE.BoxGeometry(140, 140, 140);
+
+            return new THREE.Mesh(geometry, material);
+        }
+
+        function getDistortionShaderDefinition() {
+            return {
+                uniforms: {
+                    "dist_coeff_0": { type: "f", value: 0.0 },
+                    "dist_coeff_1": { type: "f", value: 0.0 },
+                    "dist_coeff_2": { type: "f", value: 0.0 },
+                    "dist_coeff_3": { type: "f", value: 0.0 },
+                    "tDiffuse": { type: "t", value: null },
+                },
+                vertexShader: [
+                    "uniform float dist_coeffs_0;",
+                    "uniform float dist_coeffs_1;",
+                    "uniform float dist_coeffs_2;",
+                    "uniform float dist_coeffs_3;",
+                    "varying vec3 vUV;",
+                    "vec4 distort(vec4 view_pos) {",
+                    "  float x = view_pos[0];",
+                    "  float y = view_pos[1];",
+                    "  float z = view_pos[2];",
+                    "  float a = x;",
+                    "  float b = y;",
+                    "  float r = sqrt(a*a + b*b);",
+                    "  float theta = atan(r);",
+                    "  float theta_d = theta * (1.0 + dist_coeffs_0 * pow(theta, 2.0) + dist_coeffs_1 * pow(theta, 4.0) + dist_coeffs_2 * pow(theta, 6.0) + dist_coeffs_3 * pow(theta, 8.0) );",
+                    "  float xd = (theta_d / r) * a;",
+                    "  float yd = (theta_d / r) * b;",
+                    "  return vec4(xd, yd, z, 1.0);",
+                    "}",
+                    "void main() {",
+                    "  vec4 local_pos = vec4(position, 1);",
+                    "  vec4 view_pos = modelViewMatrix * local_pos;",
+                    "  vec4 dist_pos = distort(view_pos);",
+                    "  gl_Position = projectionMatrix * dist_pos;",
+                    "  vUV = vec3(uv, 1);",
+                    "}"
+                ].join("\n"),
+                fragmentShader: [
+                    "uniform sampler2D tDiffuse;",
+                    "varying vec3 vUV;",
+                    "void main() {",
+                    "  gl_FragColor = texture2DProj(tDiffuse, vUV);",
+                    "}"
+                ].join("\n")
+            };
+        }
+    </script>
+</body>
+</html>

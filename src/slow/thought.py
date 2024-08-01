@@ -1,7 +1,7 @@
 import numpy as np
 
 from src.config import CONFIG
-from src.log import info
+from src.log import debug
 from src.slow.df import SLOWDF  # Takes a while
 from src.slow.embed import (  # Takes a while
     bias_step,
@@ -53,7 +53,7 @@ def sample_nearby_thought(walk, start, end):
     )
 
     for i in range(MAX_STEPS):
-        info(
+        debug(
             f"Taking step {i+1}/{MAX_STEPS}: |biased_step| = {np.linalg.norm(biased_step)}"
         )
 

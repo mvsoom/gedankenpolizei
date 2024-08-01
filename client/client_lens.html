@@ -78,6 +78,18 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             border-radius: 5px;
             border: var(--border-style);
         }
+
+        
+
+        #infoBox .centered {
+            text-align: center; /* Center the first paragraph */
+        }
+
+        #infoBox .aligned {
+            display: flex;
+            justify-content: space-between;
+            white-space: pre; /* Preserve spaces */
+        }
     </style>
 </head>
 <body>
@@ -88,10 +100,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
     </div>
 
     <div id="infoBox">
-        <p class="center"><strong>Controls:</strong></p>
-        <p>[SPACE] (un)lock camera</p>
-        <p>[M] (un)mute</p>
-        <p>[C] toggle controls</p>
+        <p class="centered"><strong>Controls</strong></p>
+        <p class="aligned">[SPACE] (un)lock camera</p>
+        <p class="aligned">    [M] (un)mute</p>
+        <p class="aligned">    [C] toggle controls</p>
     </div>
 
     <!-- This shader transforms 2D points from the webcam texture into 3D space. It calculates depth from the texture color and positions each vertex accordingly; also sets the size of each point -->
@@ -134,7 +146,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/",
+                "three-lens-distortion": "https://cdn.jsdelivr.net/gh/ycw/three-lens-distortion@1.0.0/src/index.js"
             }
         }
     </script>
@@ -143,8 +156,14 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import * as THREE from 'three';
         import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass";
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+        import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
+        import { LensDistortionPassGen } from 'three-lens-distortion';
+
 
         // ---------------------------------------------------------------------------
         // Settings
@@ -186,7 +205,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_URL = 'ws://localhost:8766';
         const WS_TEXT_RETRY = 500; // msec
 
-        let scene, camera, renderer, composer, bloomPass;
+        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(0, 0, INITIAL_CAMERA_Z);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -235,6 +254,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             composer = new EffectComposer(renderer);
             composer.addPass(new RenderPass(scene, camera));
 
+            // Bloom pass
             bloomPass = new UnrealBloomPass(
                 new THREE.Vector2(window.innerWidth, window.innerHeight),
                 1.5, // Strength
@@ -242,6 +262,26 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 0.85 // Threshold
             );
             composer.addPass(bloomPass);
+
+            // Color to grayscale conversion
+            const effectGrayScale = new ShaderPass(LuminosityShader);
+            composer.addPass(effectGrayScale);
+
+            // Sobel operator
+            effectSobel = new ShaderPass(SobelOperatorShader);
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
+            composer.addPass(effectSobel);
+
+            // Lens distortion
+            const LensDistortionPass = LensDistortionPassGen({ THREE, Pass, FullScreenQuad });
+            lensDistortionPass = new LensDistortionPass({
+                distortion: new THREE.Vector2(0.1, 0.1),
+                principalPoint: new THREE.Vector2(0.0, 0.0),
+                focalLength: new THREE.Vector2(1.0, 1.0),
+                skew: 0.0
+            });
+            composer.addPass(lensDistortionPass);
 
             // Handle user input
             mouse = new THREE.Vector3(0, 0, 1);
@@ -265,6 +305,22 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             bloomFolder.add(bloomPass, 'radius', 0, 1, 0.01).name('Radius');
             bloomFolder.add(bloomPass, 'threshold', 0, 1, 0.01).name('Threshold');
             bloomFolder.open();
+
+            // Add Sobel edge detection enable/disable control to GUI
+            const sobelFolder = gui.addFolder('Sobel Edge Detection');
+            sobelFolder.add(effectSobel, 'enabled').name('Enable');
+            sobelFolder.open();
+
+            // Add lens distortion controls to GUI
+            const lensDistortionFolder = gui.addFolder('Lens Distortion');
+            lensDistortionFolder.add(lensDistortionPass.distortion, 'x', -1, 1, 0.01).name('Distortion X');
+            lensDistortionFolder.add(lensDistortionPass.distortion, 'y', -1, 1, 0.01).name('Distortion Y');
+            lensDistortionFolder.add(lensDistortionPass.principalPoint, 'x', -0.5, 0.5, 0.01).name('Principal Point X');
+            lensDistortionFolder.add(lensDistortionPass.principalPoint, 'y', -0.5, 0.5, 0.01).name('Principal Point Y');
+            lensDistortionFolder.add(lensDistortionPass.focalLength, 'x', 0, 2, 0.01).name('Focal Length X');
+            lensDistortionFolder.add(lensDistortionPass.focalLength, 'y', 0, 2, 0.01).name('Focal Length Y');
+            lensDistortionFolder.add(lensDistortionPass, 'skew', -Math.PI / 2, Math.PI / 2, 0.01).name('Skew');
+            lensDistortionFolder.open();
 
             setupWebcam(webcamstream);
             setupTextCanvas();
@@ -292,7 +348,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Create GainNode to control pinkNoise volume
             gainNode = listener.context.createGain();
             gainNode.gain.value = currentGain;
-            pinkNoise.connect(gainNode).connect(listener.context.destination);
+            
 
             // Add gain control to Controls GUI
             const gainControl = gui.add(gainNode.gain, 'value', 0, 1, 0.01).name('Volume').listen();
@@ -340,7 +396,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
         function playClickSound() {
             // Start and stop the pink noise after a short duration
-            pinkNoise.connect(gainNode);
+            pinkNoise.connect(gainNode).connect(listener.context.destination);
             setTimeout(() => {
                 pinkNoise.disconnect();
             }, CLICK_SOUND_DURATION);
@@ -578,6 +634,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight); // Update composer size
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
         }
 
         function onDocumentMouseMove(event) {

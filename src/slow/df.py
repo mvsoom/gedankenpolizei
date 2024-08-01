@@ -70,8 +70,6 @@ def download_slow_thoughts():
         use_auth_token=HF_TOKEN_READ,
     )
 
-    print(downloaded_file_path)
-
     slowdf = pd.read_feather(downloaded_file_path)
     return slowdf
 
