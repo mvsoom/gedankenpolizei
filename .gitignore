@@ -7,6 +7,7 @@ secrets
 .vscode/
 data/reddit/subreddit/
 util/
+demo*/
 *.feather
 .env
 GEMINI.md

@@ -164,14 +164,18 @@ def maybe_last_frame(inputs):
         return None
 
 
-def log(prompt, optional_frame, raw_tape):
+def log(prompt, optional_frame, raw_tape, fast_thoughts):
     if optional_frame:
         prompt_text = "".join(str(p) for p in prompt)
-        verbose(prompt_text, extra={"image": optional_frame._pil_image})
+        verbose(prompt_text)
+        verbose(
+            fast_thoughts.split("\n")[-1] or "",
+            extra={"image": optional_frame._pil_image},
+        )  # For demo purposes, put the image last
     else:
         verbose(prompt)
 
-    debug(repr(raw_tape))
+    # debug(repr(raw_tape))
 
 
 def generate(args, raw_tape, slowq, fastq):
@@ -200,7 +204,7 @@ def generate(args, raw_tape, slowq, fastq):
             RAW_THOUGHTS=raw_thoughts,
         )
 
-        log(prompt, optional_frame, raw_tape)
+        log(prompt, optional_frame, raw_tape, fast_thoughts)
 
         interrupted = False
 

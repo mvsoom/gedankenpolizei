@@ -17,9 +17,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             --color-blue: #049EF4;
             --text-color: #444;
             --secondary-text-color: #9e9e9e;
-            --font-size: 16px;
+            --font-size: 23px;
             --line-height: 26px;
-            --border-style: 1px solid #E8E8E8;
+            --border-style: 1 solid #E8E8E8;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -28,7 +28,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 --secondary-background-color: #2e2e2e;
                 --text-color: #bbb;
                 --secondary-text-color: #666;
-                --border-style: 1px solid #444;
+                --border-style: 3px solid #444;
             }
         }
 
@@ -80,7 +80,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             border: var(--border-style);
         }
 
-        
+        #infoBox p {
+            margin-top: 0.3em; /* Adjust this value as needed */
+            margin-bottom: 0.3em; /* Adjust this value as needed */
+        }
 
         #infoBox .centered {
             text-align: center; /* Center the first paragraph */
@@ -195,7 +198,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
 
         // Audio
-        const AUDIO_GAIN = 0.9;
+        const AUDIO_GAIN = 5.0;
         const CLICK_SOUND_DURATION = 80; // msec
 
         // Websocket
@@ -354,10 +357,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Add gain control to Controls GUI
             const audioFolder = gui.addFolder('Audio');
 
-            const gainControl = audioFolder.add(gainNode.gain, 'value', 0, 1, 0.01).name('Volume').listen();
+            const gainControl = audioFolder.add(gainNode.gain, 'value', 0.0, AUDIO_GAIN*2, 1).name('Volume').listen();
             gainControl.onChange((value) => {
                 if (!isMuted) {
-                    currentGain = value; // Update current gain value when not muted
+                    currentGain = AUDIO_GAIN; // Update current gain value when not muted
                 }
             });
         }

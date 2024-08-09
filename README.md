@@ -21,7 +21,13 @@ TODO: mention:
 - fully customizable via command line or config file
 - Gemini unleashed
 - High temperature regime
-- Minimal prompt engineering to give Gemini spaec
+
+
+- **Minimal prompt engineering!**
+  and then show the prompt!
+
+unscripted movie
+minimal guidance
 
 
 SHOWCASE:
