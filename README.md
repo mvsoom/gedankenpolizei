@@ -1,11 +1,12 @@
 # gedankenpolizei
 
+https://github.com/user-attachments/assets/08b1bf15-da92-46db-9b0b-c1578b2be271
+
+[[Youtube demo](https://www.youtube.com/watch?v=OIdcJpiyxC0)][[Longer demo](https://www.youtube.com/watch?v=JX2Fib6inp0)]
+
 > *I be me, you be the thought police*
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/OIdcJpiyxC0/0.jpg)](https://www.youtube.com/watch?v=OIdcJpiyxC0)
-
-
-**gedankenpolizei** is an experiment where you, gentle user, gets to observe a continuous stream of consciousness from an AI, in real-time.
+**gedankenpolizei** is an experiment where you get to observe a continuous stream of consciousness from an AI, in real-time. The video shows a demo of the code and is completely unscripted and in real time. This is part of research into more relatable NPCs (non-playable characters) that are aware of their environment.
 
 The code simulates a hurried, frantic inner monologue that we sometimes find ourselves having. The AI has sight (but it can't hear) and might comment on what it sees, or it might choose to ignore it altogether.
 
