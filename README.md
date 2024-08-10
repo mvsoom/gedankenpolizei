@@ -2,6 +2,9 @@
 
 > *I be me, you be the thought police*
 
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/OIdcJpiyxC0/0.jpg)](https://www.youtube.com/watch?v=OIdcJpiyxC0)
+
+
 **gedankenpolizei** is an experiment where you, gentle user, gets to observe a continuous stream of consciousness from an AI, in real-time.
 
 The code simulates a hurried, frantic inner monologue that we sometimes find ourselves having. The AI has sight (but it can't hear) and might comment on what it sees, or it might choose to ignore it altogether.
