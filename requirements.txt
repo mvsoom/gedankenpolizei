@@ -8,6 +8,8 @@ certifi==2024.2.2
 charset-normalizer==3.3.2
 click==8.1.7
 cloudpathlib==0.18.1
+colorama==0.4.6
+colorlog==6.8.2
 comm==0.2.2
 confection==0.1.5
 contourpy==1.2.1
@@ -21,6 +23,8 @@ docstring_parser==0.16
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889
 exceptiongroup==1.2.1
 executing==2.0.1
+ffmpeg-normalize==1.28.2
+ffmpeg-progress-yield==0.7.8
 filelock==3.14.0
 floret==0.10.5
 fonttools==4.53.1
@@ -49,6 +53,7 @@ httpx==0.27.0
 huggingface-hub==0.23.5
 idna==3.7
 imageio==2.34.2
+inquirerpy==0.3.4
 ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.24.0
@@ -90,6 +95,7 @@ packaging==24.0
 pandas==2.2.2
 parso==0.8.4
 pexpect==4.9.0
+pfzy==0.3.4
 pillow==10.3.0
 platformdirs==4.2.2
 preshed==3.0.9

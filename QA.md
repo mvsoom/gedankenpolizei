@@ -2,17 +2,11 @@
 
 ## Why `gedankenpolizei`?
 
-Explore more realistic thoguhts
-
-[Content From proposals here]
-
-Exploring high-temperature regime of LLMs, often the thing we want to avoid
-
-This is an artistic research to question to which extent LLMs can model our thoughts, and how it feels to read the thoughts of another "being", and does it make us judgy? Are we the thought police?
-
-## How much does it cost?
-
-TODO
+- Means "thought police" in German.
+- Unleashing high-temperature LLMs. Probing their creative/artistic/more "human" side.
+- Research into more relatable NPCs (non-playable characters) that are aware of what is happening around them in semi-real-time.
+- This is an artistic research to question to which extent LLMs can model our raw thoughts, and how it feels to read the thoughts of another "being". What do we expect of it? Can we connect to it? We find ourselves literally in the role of thought police.
+- Exploring a dystopian visualization of the thought police concept.
 
 ## How did you make this?
 

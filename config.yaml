@@ -35,6 +35,7 @@ slow:
     # The `intensity` parameter in [0, 1] controls the amount of bias in the walk in SLOW space
     # A value of 0. means no bias is applied to the step
     # A value of 1. means that the projections of the step onto the bias directions are enforced to be at least unity, even if they were negative originally
+    # Turned off for now.
     intensity: 0.
 
     # Bias directions are relative vectors in SLOW space that are used to bias the direction of the walk in SLOW space
