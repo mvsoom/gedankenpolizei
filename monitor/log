@@ -1,5 +1,6 @@
 #!/bin/bash
 # This script watches a log file and uses mdcat to render the lines that were added since the last change in Markdown to the terminal.
+# This can display images if you have a terminal that supports it.
 # Usage: watchlog.sh <logfile>
 LOGFILE=$1
 

@@ -364,4 +364,7 @@ if __name__ == "__main__":
         PROMPT, MAYBE_ASCII_ART="ASCII" + " " if args.ascii else None
     )
 
-    exit(main(args))
+    try:
+        exit(main(args))
+    except KeyboardInterrupt:
+        exit(1)
