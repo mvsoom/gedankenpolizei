@@ -5,6 +5,7 @@ Markdown==3.6
 numpy==1.26.4
 pandas==2.2.2
 pillow==10.3.0
+pyarrow==17.0.0  # deptry will complain about this, but don't remove it
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 PyYAML==6.0.1
@@ -13,7 +14,7 @@ retrying==1.3.4
 sentence-transformers==3.0.1
 spacy==3.7.5
 textacy==0.13.0
-torch==2.3.1
+--find-links https://download.pytorch.org/whl/torch/
+torch==2.3.1+cpu
 tqdm==4.66.4
 transformers==4.42.4
-pyarrow==17.0.0

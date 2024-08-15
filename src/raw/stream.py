@@ -367,4 +367,5 @@ if __name__ == "__main__":
     try:
         exit(main(args))
     except KeyboardInterrupt:
+        info("Received keyboard interrupt")
         exit(1)
