@@ -10,9 +10,9 @@ https://github.com/user-attachments/assets/08b1bf15-da92-46db-9b0b-c1578b2be271
 
 The code simulates a hurried, frantic inner monologue that we sometimes find ourselves having. The AI has sight (but it can't hear) and might comment on what it sees, or it might choose to ignore it altogether.
 
-You are the judge of the inner thoughts of a "sentient" simulacrum ... a dystopian visualization of the thought police creeping ever closer to our deepest thoughts. I mean, that's dark, but also serious fun when you have it running in the background. Plus you finally found another use for `lolcat` other than `fortune | cowsay` :)
+You are the judge of the inner thoughts of a "sentient" simulacrum ... a dystopian visualization of the thought police creeping ever closer to our deepest thoughts. I mean, that's dark, but also serious fun when you have it running in the background. Plus you finally found an expensive use for `lolcat` :)
 
-## Installation
+## Installation and quick run
 
 I used Python 3.10.12. Install the runtime in a venv, clone this repo and then do
 ```bash
@@ -24,28 +24,26 @@ Then create an env file:
 ```bash
 touch .env
 ```
-and fill a project ID for Vertex AI:
+and insert a project ID for Vertex AI into the newly created `.env` file:
 ```bash
 PROJECT_ID=[key here]
 ```
-Note: I used Gemini Flash and Pro 1.5 with safety turned off and maxed out RPM at 1000. I also chose a server location close by me to minimize latency; if you experience latency issues you can set the location by changing the `gemini.location` key in `config.yaml`.
+Note: I used Gemini Flash and Pro 1.5 with safety turned off and maxed out RPM at 1000. I also chose a server location close by me to minimize latency; if you experience latency issues you can set the location by changing the `gemini.location` key in [`config.yaml`](./config.yaml).
 
 Then install the following programs:
 ```bash
-ffmpeg
-websocat  # make sure this is in PATH
+ffmpeg    # Probably on your system already
+websocat  # https://github.com/vi/websocat
 ```
-
-Optional programs to install additionally are:
+and run the demo script used to generate the video above to see it in action:
 ```bash
-mdcat            # For visualizing logs
-cool-retro-term  # For fancy output
-lolcat           # For fancy output
+google-chrome client/client.html &  # Or Chromium or Firefox -- see QA.md
+scripts/demo.sh
 ```
 
 ### SLOW stream
 
-If you want to use the SLOW thought stream, things are a bit more involved. Either you scrape and process it yourself as explained in `src/slow/reddit/REDDIT.md`, or you acquire Hugging Face tokens from me and put them in the `.env` file next to the `PROJECT_ID`:
+If you want to use the SLOW thought stream, things are a bit more involved. Either you scrape and process it yourself as explained in [`REDDIT.md`](./src/slow/reddit/REDDIT.md), or you acquire Hugging Face tokens from me and put them in the `.env` file next to the `PROJECT_ID`:
 ```bash
 PROJECT_ID=[key here]
 HF_TOKEN_READ=[key here]
@@ -53,8 +51,8 @@ HF_TOKEN_WRITE=[key here]
 ```
 Then you can run the following commands to cold-start and cache the embedding model and seeding SLOW thoughts:
 ```bash
-python -m src.slow.embed   # Download embedding model
-python -m src.slow.thought # Download seed SLOW thoughts
+python -m src.slow.embed    # Download embedding model
+python -m src.slow.thought  # Download seed SLOW thoughts
 ```
 This is not required but enables a smooth first run.
 
@@ -70,41 +68,54 @@ Complete the RAW stream directly, without repeating any of it!
 ```
 Nothing of the output is scripted; there is minimal guidance.
 
-The code consists of a fancy frontend (`client/client.html`) which delivers a dystopian visualization of the project, and a text-based backend which calculates the RAW thoughts based FAST and SLOW input thoughts as a walk in semantic (embedding) space.[^1] The logic is set up as a stream of data transformers. For example,
+The code consists of a fancy frontend ([`client.html`](./client/client.html)) which delivers a dystopian visualization of the project, and a text-based backend which calculates the RAW thoughts, from FAST and SLOW input thoughts, as a walk in semantic (embedding) space.[^1] The logic is set up as a stream of data transformers. For example,
 ```bash
-google-chrome client/client.html &        # Start frontend
-grab/websocket | \                        # Grab the webcam stream exposed by the frontend
-python -m src.fast.narrate \
-    --config fast.novelty_threshold:10 \
-    --jsonl \
-    --output-frames | \                   # Process the webcam stream in near-realtime into FAST thoughts
-python -m src.raw.stream \
-    --config raw.memory_size:128 \
-    --config slow.pace:0.5 \
-    --config raw.pace:16 \
-    --roll-tape \                         # Process FAST and SLOW thoughts into RAW thoughts and visualize them
-    2> >(emit/websocket)                  # Send the RAW thoughts back to the client
+google-chrome client/client.html &      # Start frontend
+grab/websocket | \                      # Grab the webcam stream exposed by the frontend
+python -m src.fast.narrate \            # Process the webcam stream in near-realtime into FAST thoughts
+    --jsonl  --output-frames | \
+python -m src.raw.stream --roll-tape \  # Process FAST and SLOW thoughts into RAW thoughts and visualize them
+    2> >(emit/websocket)                # Send the RAW thoughts back to the client
 ```
-This round-trip architecture has a latency of about (max) 1.5 seconds; meaning that the AI is generally aware of you waving your hand maximuum 1.5 seconds after the fact. Lower latencies are possible in some cases, which can be explored by tinkering with the parameters in `config.yaml` or passed directly through command line switches `--config key:value` is in the example above.
+This round-trip architecture has a latency of max 1.5 seconds; meaning that the AI is generally aware of you waving your hand max 1.5 seconds after the fact. Lower latencies up to 0.7 seconds are generally possible and can be explored by tinkering with the parameters in [`config.yaml`](./config.yaml) or passed directly through command line switches in `--config key:value` form.
 
-[^1]: See `src/slow/reddit/REDDIT.md` for more details on how the SLOW stream is designed. Its job is to seed the RAW thoughts with thought themes and moods.
+[^1]: See [`REDDIT.md`](./src/slow/reddit/REDDIT.md) for more details on how the SLOW stream is designed. Its job is to seed the RAW thoughts with overall thought themes and moods.
 
 ### Transforming and monitoring streams
 
-You can choose an optional vision **input source** by running one of the programs in `grab/`; available are webcam, screencast, movie files. For example, I like to keep gedankenpolizei open in a monitor while it watches me code; its quirky thoughts give a sort of lightness to the moment or provide some creative distraction.
-
-You can choose the stream of consciousness **output source** by running one of the programs in `emit/` to transform the output in a fancy way, but this is completely optional and just adds persona to the output. I like to use `lolcat` for example:
+You can choose an optional vision **input source** by running one of the programs in [`grab/`](./grab/); available input sources are webcam, screencast, movie files. For example, I like to keep gedankenpolizei open in a monitor while it watches me code; its quirky thoughts give a sort of lightness to the moment or provide some creative distraction:
 ```bash
-python -m src.raw.stream | emit/lolcat
+grab/screen | \
+python -m src.fast.narrate --jsonl --output-frames | \
+python -m src.raw.stream
 ```
 
-It is also possible to **monitor** the data streams by running one of the programs in `monitor/`, for example to see visualize the vision input stream:
+You can choose the stream of consciousness **output source** by running one of the programs in [`emit/`](./emit/) to transform the output in a fancy way, but this is completely optional and just adds persona to the output. I like to use `cool-retro-term` for example:
+```bash
+python -m src.raw.stream | emit/retroterm
+```
+
+It is also possible to **monitor** the data streams by running one of the programs in [`monitor/`](./monitor/), for example to see visualize the vision input stream:
 ```bash
 monitor/log logs/src/fast/narrate.md
+```
+
+Note: these "addons" require these additional programs to be installed:
+```bash
+mdcat  # https://github.com/swsnr/mdcat
+lolcat
+cool-retro-term
 ```
 
 ## Credits
 
 - I want to thank Thalïa Viaene for unwavering support and love and Mathias Mu for artistic bro-support.
 - Thanks to Google for providing an incredible LLM, generous credits and a stable API in terms of service and latency!
-- Further thanks go to the `three.js` project and all the other open source projects this repo uses.
+- Further special thanks go to [three.js](https://threejs.org/), [websocat](https://github.com/vi/websocat) and [mdcat](https://github.com/swsnr/mdcat) projects for being great solutions to problems I had; and of course all other open source projects used by this repo.
+
+
+| Description   | Video Preview |
+| ------------- | ------------- |
+| A sample video | https://github.com/user-attachments/assets/08b1bf15-da92-46db-9b0b-c1578b2be271 |
+
+[![asciicast](https://asciinema.org/a/113463.png)](https://asciinema.org/a/113463)

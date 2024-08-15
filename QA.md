@@ -18,17 +18,21 @@ To make `gedankenpolizei` possible, debug-able and operatable, I designed some c
 - A module for Reddit scraping and vetting tools which are reusable and robust. Used for SLOW.
 - Nearly-realtime vision using subsecond video captioning in conjunction with an aggregation pipeline. Used for FAST.
 - Realtime streaming of coherent thought-like text given the SLOW and FAST thought streams. Used for RAW.
-- A module for Markdown logging which can be monitored live with `mdcat`. Handy for debugging and logging apps that process images.
+- A module for Markdown logging which can be monitored live with [`mdcat`](https://github.com/swsnr/mdcat). Handy for debugging and logging apps that process images.
 
 More information can be found in other Markdown files in this repo.
 
 ## Why the single HTML file?
 
-This was done as convenience to sidestep CORS issues during local development. Also, as I don't know anything about front-end web development or `three.js`, it was heavily co-written with AI, and a single file is convenient for that.
+This was done as convenience to sidestep CORS issues during local development. Also, as I don't know anything about front-end web development or [`three.js`](https://threejs.org/), it was heavily co-written with AI, and a single file is convenient for that.
+
+## Do I have to use Google Chrome to view the frontend client?
+
+No, I tested it with Chromium (126.0.6478.182) and it works. Also works with Firefox (tested 129.0.1) but the sound is off for some reason (it is generated live from pink noise).
 
 ## Why is the SLOW database gated?
 
-Downloading the SLOW database requires setting `HF_TOKEN_READ` in the `.env` file. This prevents legal issues with Redit content redistribution and reduces possibility of abuse. More on this in `REDDIT.md`.
+Downloading the SLOW database requires setting `HF_TOKEN_READ` in the `.env` file. This prevents legal issues with Redit content redistribution and reduces possibility of abuse. More on this in [`REDDIT.md`](./src/slow/reddit/REDDIT.md).
 
 ## What can it do more?
 
