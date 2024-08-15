@@ -79,12 +79,17 @@ Nothing of the output is scripted; there is minimal guidance.
 
 The code consists of a fancy frontend ([`client.html`](./client/client.html)) which delivers a dystopian visualization of the project, and a text-based backend which calculates the RAW thoughts, from FAST and SLOW input thoughts, as a walk in semantic (embedding) space.[^2] The logic is set up as a stream of data transformers. For example,
 ```bash
-google-chrome client/client.html &      # Start frontend
-grab/websocket | \                      # Grab the webcam stream exposed by the frontend
-python -m src.fast.narrate \            # Process the webcam stream in near-realtime into FAST thoughts
-    --jsonl  --output-frames | \
-python -m src.raw.stream --roll-tape \  # Process FAST and SLOW thoughts into RAW thoughts and visualize them
-    2> >(emit/websocket)                # Send the RAW thoughts back to the frontend client
+# Start frontend
+google-chrome client/client.html &
+
+# Grab the webcam stream exposed by the frontend
+grab/websocket | \
+
+# Process the webcam stream in near-realtime into FAST thoughts
+python -m src.fast.narrate --jsonl --output-frames | \
+
+# Process FAST and SLOW thoughts into RAW thoughts and send back to frontend
+python -m src.raw.stream --roll-tape 2> >(emit/websocket)
 ```
 This command runs the backend in the terminal and sends its output to the Javascript frontend via stderr. In the GIFs below you can see how the backend output (on the left) is rendered in the frontend (on the right) in realtime:
 <p align="center">
