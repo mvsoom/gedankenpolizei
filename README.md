@@ -6,9 +6,9 @@ https://github.com/user-attachments/assets/08b1bf15-da92-46db-9b0b-c1578b2be271
 
 > *I be me, you be the thought police*
 
-**gedankenpolizei** is an experiment where you get to observe a continuous stream of consciousness from an AI, in real-time. The video shows a demo of the code and is completely unscripted and in real time. This is part of research into more relatable NPCs (non-playable characters) that are aware of their environment.
+**gedankenpolizei** is an experiment where you get to observe a continuous stream of consciousness from an AI, in real-time. The project simulates a hurried, frantic inner monologue that we sometimes find ourselves having. The AI has *continuous vision* (but it can't hear) and might comment on what it sees, or it might choose to ignore it altogether.
 
-The code simulates a hurried, frantic inner monologue that we sometimes find ourselves having. The AI has sight (but it can't hear) and might comment on what it sees, or it might choose to ignore it altogether.
+The videos on this page are completely unscripted and in realtime. Making AIs understand and react to what they can see around themselves in realtime is part of ongoing research into more relatable NPCs (non-playable characters) that are aware of their environment.
 
 You are the judge of the inner thoughts of a "sentient" simulacrum ... a dystopian visualization of the thought police creeping ever closer to our deepest thoughts. I mean, that's dark, but also serious fun when you have it running in the background. Plus you finally found a new excuse to use `lolcat` :)
 
@@ -28,11 +28,13 @@ Then create an env file:
 ```bash
 touch .env
 ```
-and insert a project ID for Vertex AI into the newly created `.env` file:
+and insert your project ID for Vertex AI into the newly created `.env` file:
 ```bash
 PROJECT_ID=[key here]
 ```
-Note: I used Gemini Flash and Pro 1.5 with safety turned off and maxed out RPM at 1000. I also chose a server location close by me to minimize latency; if you experience latency issues you can set the location by changing the `gemini.location` key in [`config.yaml`](./config.yaml).
+Note that:
+- A project ID is not the same as a Google API key, and if you haven't authenticated locally, [you will need extra credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc#local-dev) (eg. via setting `GOOGLE_APPLICATION_CREDENTIALS`).
+- I used Gemini Flash and Pro 1.5 with safety turned off and maxed out RPM at 1000. I also chose a server location closeby to minimize latency; if you experience latency issues you can set the location by changing the `gemini.location` key in [`config.yaml`](./config.yaml).
 
 Then install the following programs:
 ```bash
