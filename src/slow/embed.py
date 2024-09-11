@@ -42,6 +42,13 @@ def embed(text, truncation_length=MODEL.max_seq_length):
     """
     is_batch = isinstance(text, list)
 
+    # TEMPORARY FAST TRACK #############################
+    if is_batch:
+        return [zero()] * len(text)
+    else:
+        return zero()
+    ####################################################
+
     tokens = tokenize_last(text, truncation_length)
 
     with torch.no_grad():  # https://github.com/UKPLab/sentence-transformers/issues/742#issuecomment-772757207
