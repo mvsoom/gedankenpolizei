@@ -55,7 +55,7 @@ def writeout(vdf, path):
 def get_candidates(pdf, vdf):
     """GOOD candidate posts have not been labeled or vetted yet"""
     candidates = pdf[pdf["labels"].apply(len) == 0]
-    candidates = pdf[~pdf.index.isin(vdf.index)]
+    candidates = candidates[~candidates.index.isin(vdf.index)]
     return candidates
 
 
