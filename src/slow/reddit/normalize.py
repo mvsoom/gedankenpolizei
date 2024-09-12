@@ -61,7 +61,16 @@ def trycollapse(
     return "" if not pattern.search(result) else text
 
 
-def sentence_tokenizer(text, nlp=spacy.load("en_core_web_sm")):
+def get_nlp(MODEL="en_core_web_sm"):
+    """Do `pip install en_core_web_sm` if the model is not found"""
+    try:
+        return spacy.load(MODEL)
+    except OSError:
+        spacy.cli.download(MODEL)
+        return spacy.load(MODEL)
+
+
+def sentence_tokenizer(text, nlp=get_nlp()):
     """Split text into newline-separated sentence tokens
 
     Note: en_core_web_sm is well suited for sentence tokenization, little to no gains from larger models
