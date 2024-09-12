@@ -8,7 +8,7 @@ SUBREDDIT_LIST="$DATA_DIR/subreddit.list"
 POSTS_FILE="$DATA_DIR/posts.feather"
 POSTS_BATCH=2000
 
-SCRAPE_NUM_THREADS=4
+SCRAPE_NUM_THREADS=6
 SCRAPE_STRIDE=31449600 # 1 year
 SCRAPE_MAXFSIZE=5 # GB
 
@@ -20,7 +20,7 @@ echo "Normalizing new scrapes..."
 for csv_file in "$SUBREDDIT_DIR"/*.csv; do
     if [ -f "$csv_file" ]; then
         # Run the command for each CSV file
-        python -m src.slow.reddit.normalize "$csv_file" --verbose
+        python -m src.slow.reddit.normalize "$csv_file" --update --verbose
     fi
 done
 

@@ -2,6 +2,7 @@
 
 import argparse
 import html
+import os
 import re
 from functools import partial
 from sys import exit
@@ -144,6 +145,7 @@ def read(inputcsv):
 
 
 def write(df, outputfile):
+    df.sort_values(by="created_utc", inplace=True)
     df.to_feather(outputfile, compression="zstd")
 
 
@@ -168,9 +170,23 @@ def emptystring(column):
     return column.str.len() == 0
 
 
+def get_old(outputfile):
+    try:
+        old = pd.read_feather(outputfile)
+        verbose(f"Updating {outputfile}")
+    except FileNotFoundError:
+        old = pd.DataFrame()
+        verbose("Update file not found; processing all rows")
+    return old
+
+
 def main(args):
     verbose(f"Reading {args.inputcsv}")
     df = read(args.inputcsv)
+
+    if args.update:
+        old = get_old(args.outputfile)
+        df = df[~df["id"].isin(old.index)]
 
     verbose("Normalizing authors")
     df["author"] = normalize_column(df, "author", args.verbose)
@@ -188,9 +204,12 @@ def main(args):
     verbose("Setting index and sorting")
     df.drop_duplicates(subset="id", inplace=True, keep="last")
     df.set_index("id", inplace=True, verify_integrity=True)
-    df.sort_values(by="created_utc", inplace=True)
 
-    verbose(f"Writing resulting {len(df)} rows to {args.outputfile}")
+    newrows = len(df)
+    if args.update:
+        df = pd.concat([old, df])
+
+    verbose(f"Writing {newrows} new rows (total {len(df)} rows) to {args.outputfile}")
     write(df, args.outputfile)
 
     return 0
@@ -206,7 +225,12 @@ if __name__ == "__main__":
         "outputfile",
         nargs="?",
         default=None,
-        help="Write out result to this .feather file and replace it if it already exists (default: base on {inputcsv})",
+        help="Write out result to this .feather file (default: base on {inputcsv})",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update output file rather than overwriting (note: empty or duplicate posts will be processed again)",
     )
     parser.add_argument("--verbose", action="store_true", help="Print verbose output")
 
@@ -218,6 +242,11 @@ if __name__ == "__main__":
             if args.inputcsv.lower().endswith(".csv")
             else args.inputcsv
         ) + ".feather"
+
+    if not args.update:
+        assert not os.path.exists(
+            args.outputfile
+        ), f"Output file {args.outputfile} already exists. Use --update to append to it"
 
     if not args.verbose:
         verbose = lambda *_, **__: None
