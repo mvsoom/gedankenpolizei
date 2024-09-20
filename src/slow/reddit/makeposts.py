@@ -168,13 +168,11 @@ def main(args):
     df["embedding"] = apply(df["post"], embed, show_progress=args.verbose)
 
     newrows = len(df)
-    newrows = len(df)
     if args.update:
         try:
             old = pd.read_feather(args.outputfile)
             df = pd.concat([old, df])
             df = df[~df.index.duplicated(keep="last")]
-            newrows = len(df) - len(old)
             newrows = len(df) - len(old)
             verbose("Updating")
         except FileNotFoundError:
