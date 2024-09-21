@@ -1,5 +1,6 @@
 """Vet posts manually or automatically"""
 
+import textwrap
 from sys import exit
 from time import time
 
@@ -13,7 +14,6 @@ from src.config import CONFIG, ConfigArgumentParser
 from src.gemini import gemini, read_prompt_file, replace_variables
 from src.slow.embed import embed
 from src.slow.reddit import tui
-from src.slow.reddit.makeposts import formatpost
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
 PLUS, MINUS, ENTER = ord("+"), ord("-"), ord("\n")
@@ -30,6 +30,21 @@ BIAS = "I see people."
 
 PROMPT = read_prompt_file(CONFIG("slow.reddit.vet_prompt_file"))
 MODEL = gemini(CONFIG("slow.reddit.model.name"))
+
+
+def formatpost(post, symbol="🟦", width=60):
+    # Color the first line (title) in blue
+    lines = post.splitlines()
+    # lines[0] = f"\033[94m{lines[0]}\033[0m"
+    # Separate newlines by symbol
+    formattedpost = symbol.join(lines)
+    # Wrap the text to 60 characters
+    formattedpost = textwrap.fill(formattedpost, width=width)
+    return formattedpost
+
+
+def printpost(post, *args, **kwargs):
+    print(formatpost(post, *args, **kwargs))
 
 
 def weigh_subreddits(pdf, vdf):
@@ -201,17 +216,22 @@ def main(args):
     return 0
 
 
+def parse_prediction(prediction):
+    if prediction == "GOOD":
+        score = 1
+    elif prediction == "BAD":
+        score = -1
+    else:
+        raise ValueError(f"Unknown prediction `{prediction}`")
+    return score
+
+
 def autovet(args, vdf, sample_post, predict):
     for _ in tqdm(range(args.n)):
         sample = sample_post()
         try:
             prediction = predict(sample, explain=False)
-            if prediction == "GOOD":
-                score = 1
-            elif prediction == "BAD":
-                score = -1
-            else:
-                raise ValueError(f"Unknown prediction `{prediction}`")
+            score = parse_prediction(prediction)
         except Exception as e:
             print(f"Error processing `{sample.name}`: {e}")
             score = 0

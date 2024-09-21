@@ -28,7 +28,7 @@ COLUMNS = (
 )
 
 
-@retry(wait_exponential_multiplier=1000, stop_max_delay=3600000)
+@retry(wait_exponential_multiplier=1000, stop_max_delay=1800000)
 def make_request(url):
     response = requests.get(url, timeout=10)
 
