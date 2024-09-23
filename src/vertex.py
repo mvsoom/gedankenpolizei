@@ -10,6 +10,7 @@ from vertexai.generative_models import (
     HarmBlockThreshold,
     HarmCategory,
 )
+from vertexai.language_models import TextEmbeddingModel
 
 from src.config import CONFIG
 
@@ -48,6 +49,17 @@ def gemini(model_shorthand, **kwargs):
     model = GenerativeModel(**config)
     # TODO: attach COST_PER_* costs to the model object rather than to this module
     model.name = model_name
+    return model
+
+
+def embedder():
+    model_name = CONFIG("slow.embed.model.name")
+    model = TextEmbeddingModel.from_pretrained(model_name)
+
+    model.dimension = CONFIG("slow.embed.model.dimension")
+    model.task = CONFIG("slow.embed.model.task")
+    model.max_batch_size = CONFIG("slow.embed.model.max_batch_size")
+
     return model
 
 

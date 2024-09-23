@@ -180,6 +180,16 @@ def get_old(outputfile):
     return old
 
 
+def make_posts(title, selftext):
+    """A post contains newline separated sentence tokens, so each line is a sentence token
+
+    The first line (aka sentence token) is always the normalized title (which may contain multiple natural language sentences (rare), but no newlines).
+    The next lines are the sentence tokens of the normalized selftext.
+    """
+    post = title.str.replace("\n", " ") + "\n" + selftext
+    return post
+
+
 def main(args):
     verbose(f"Reading {args.inputcsv}")
     df = read(args.inputcsv)
@@ -196,6 +206,9 @@ def main(args):
 
     verbose("Normalizing selftexts")
     df["selftext"] = normalize_column(df, "selftext", args.verbose)
+
+    verbose("Joining into posts")
+    df["post"] = make_posts(df["title"], df["selftext"])
 
     verbose("Removing empty posts (empty authors are allowed)")
     empty = emptystring(df["title"]) | emptystring(df["selftext"])

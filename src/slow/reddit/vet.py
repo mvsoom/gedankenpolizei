@@ -11,9 +11,9 @@ from tqdm import tqdm
 from vertexai.generative_models import GenerationConfig
 
 from src.config import CONFIG, ConfigArgumentParser
-from src.gemini import gemini, read_prompt_file, replace_variables
 from src.slow.embed import embed
 from src.slow.reddit import tui
+from src.vertex import gemini, read_prompt_file, replace_variables
 
 INSTRUCTIONS = "Vetting: press '+' to score +1, '-' for -1, ENTER for 0, 'q' to quit"
 PLUS, MINUS, ENTER = ord("+"), ord("-"), ord("\n")

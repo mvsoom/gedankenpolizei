@@ -10,11 +10,11 @@ from PIL import Image
 from vertexai.generative_models import Image as GeminiImage
 
 from src.config import CONFIG
-from src.gemini import (
+from src.log import debug
+from src.vertex import (
     gemini,
     read_prompt_file,
 )
-from src.log import debug
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("fast.model.system_prompt_file"))
 

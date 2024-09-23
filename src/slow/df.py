@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi, hf_hub_download
 
 from src.config import CONFIG, ConfigArgumentParser
-from src.gemini import replace_variables
 from src.log import info
+from src.vertex import replace_variables
 
 load_dotenv()
 

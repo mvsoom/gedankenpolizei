@@ -1,55 +1,53 @@
 """Embedding algebra"""
 
-import sys
-
 import numpy as np
-import torch
 from numpy.linalg import norm
-from sentence_transformers import SentenceTransformer
+from vertexai.language_models import TextEmbeddingInput
 
-from src.config import CONFIG
-from src.log import info
+from src.vertex import embedder
 
-NAME = CONFIG("slow.embed.model.name")
-MODEL = SentenceTransformer(NAME)
-DIMENSION = MODEL.get_sentence_embedding_dimension()
-
-info(f"Loaded {NAME} embedding model with dimension {DIMENSION}")
+MODEL = embedder()
+DTYPE = np.float32
 
 
 def zero():
-    return np.zeros(DIMENSION)
+    return np.zeros(MODEL.dimension, dtype=DTYPE)
 
 
-def tokenize_last(text, truncation_length):
-    """Tokenize and truncate to the LAST part of the text"""
-    # We use the `truncation=True` and `max_length=sys.maxsize` trick to avoid an harmless log warning
-    tokens = MODEL.tokenizer(
-        text, padding=True, truncation=True, max_length=sys.maxsize, return_tensors="pt"
-    )
-
-    truncated = {k: v[..., -truncation_length:] for k, v in tokens.items()}
-
-    return truncated
+def allnan():
+    return np.full(MODEL.dimension, np.nan, dtype=DTYPE)
 
 
-def embed(text, truncation_length=MODEL.max_seq_length):
+def embed(
+    text_input,
+    dimension=MODEL.dimension,
+    max_batch_size=MODEL.max_batch_size,
+    task=MODEL.task,
+):
     """Embed a single text or list (batch) of texts
 
-    Note: we don't use the SentenceTransformer.encode() interface for two reasons:
-        * It doesn't support truncation to the last part of the text
-        * It's so much slower on my CPU for some reason. Batching also makes much less sense for CPU
+    If text_input is a list, the output is a 2D array with one embedding per row; otherwise just the embedding vector
     """
-    is_batch = isinstance(text, list)
+    is_batch = isinstance(text_input, list)
+    texts = text_input if is_batch else [text_input]
 
-    tokens = tokenize_last(text, truncation_length)
+    if len(texts) > max_batch_size:
+        batches = [
+            texts[i : i + max_batch_size] for i in range(0, len(texts), max_batch_size)
+        ]
+        return np.vstack(
+            [embed(batch, dimension, max_batch_size, task) for batch in batches]
+        )
 
-    with torch.no_grad():  # https://github.com/UKPLab/sentence-transformers/issues/742#issuecomment-772757207
-        model_output = MODEL(tokens)
+    inputs = [TextEmbeddingInput(text, task) for text in texts]
 
-    embedding = model_output["sentence_embedding"]
-    embedding = embedding if is_batch else embedding.squeeze(0)
-    return embedding.numpy()
+    embeddings = MODEL.get_embeddings(
+        inputs, auto_truncate=True, output_dimensionality=dimension
+    )
+
+    return np.vstack(
+        [embedding.values for embedding in embeddings], dtype=DTYPE
+    ).squeeze()
 
 
 def compute_bias_matrix(overall_multiplier, directions):

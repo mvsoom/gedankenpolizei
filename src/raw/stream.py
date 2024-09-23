@@ -16,10 +16,10 @@ import pandas as pd
 from src import STARTTIME
 from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import Frame
-from src.gemini import gemini, read_prompt_file, replace_variables
 from src.log import debug, error, info, verbose
 from src.raw.slot import BidirectionalSlot, Slot
 from src.raw.tape import Tape
+from src.vertex import gemini, read_prompt_file, replace_variables
 
 SYSTEM_PROMPT = read_prompt_file(CONFIG("raw.model.system_prompt_file"))
 PROMPT = read_prompt_file(CONFIG("raw.model.prompt_file"))

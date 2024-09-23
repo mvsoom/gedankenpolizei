@@ -7,11 +7,12 @@ from sys import exit
 
 import numpy as np
 import pandas as pd
+from google.api_core.exceptions import ResourceExhausted
 from tqdm import tqdm
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
 from src.config import ConfigArgumentParser
-from src.slow.embed import embed
+from src.slow.embed import allnan, embed
 from src.slow.reddit import patterns
 from src.slow.reddit.vet import ask_gemini, formatpost, parse_prediction
 
@@ -33,16 +34,6 @@ def read_dfs(inputs):
         verbose(f"Dropped {n - len(df)} duplicate rows based on index")
 
     return df
-
-
-def preprocess_row(title, selftext):
-    """A post contains newline separated sentence tokens, so each line is a sentence token
-
-    The first line (aka sentence token) is always the normalized title (which may contain multiple natural language sentences (rare), but no newlines).
-    The next lines are the sentence tokens of the normalized selftext.
-    """
-    post = title.replace("\n", " ") + "\n" + selftext
-    return post
 
 
 COMPILED_LABEL_PATTERNS = {
@@ -173,9 +164,13 @@ def score_row(post, labels):
 
 def embed_row(post, score):
     if score > 0:
-        embedding = embed(post)
+        try:
+            embedding = embed(post)
+        except ResourceExhausted:
+            verbose("Embedding failed due to resource exhaustion")
+            embedding = np.nan
     else:
-        embedding = np.nan
+        embedding = allnan()
     return embedding
 
 
@@ -194,9 +189,6 @@ def main(args):
         maxops=args.maxops,
         show_progress=args.verbose,
     )
-
-    verbose("Joining titles and selftexts into posts")
-    df = apply(df, preprocess_row, "post", ["title", "selftext"])
 
     verbose("Labeling posts")
     df = apply(df, label_row, "labels", ["post"])
