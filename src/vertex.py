@@ -16,9 +16,9 @@ from src.config import CONFIG
 
 dotenv.load_dotenv()
 
-project_id = os.getenv("PROJECT_ID")
+project_id = os.getenv("VERTEXAI_PROJECT_ID")
 if not project_id:
-    raise ValueError("PROJECT_ID token is not set in the .env file")
+    raise ValueError("VERTEXAI_PROJECT_ID token is not set in the .env file")
 
 
 LOCATION = CONFIG("gemini.location")

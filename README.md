@@ -50,9 +50,9 @@ You can press `SPACE` to move the camera around and `C` to explore the weirdness
 
 ### SLOW stream
 
-To get the same output quality as the demo, you need to activate the SLOW thought stream, and things are a bit more involved. Either you scrape and process it yourself as explained in [`REDDIT.md`](./src/slow/reddit/REDDIT.md), or you acquire Hugging Face tokens from me[^1] and put them in the `.env` file next to the `PROJECT_ID`:
+To get the same output quality as the demo, you need to activate the SLOW thought stream, and things are a bit more involved. Either you scrape and process it yourself as explained in [`REDDIT.md`](./src/slow/reddit/REDDIT.md), or you acquire Hugging Face tokens from me[^1] and put them in the `.env` file next to the `VERTEXAI_PROJECT_ID`:
 ```bash
-PROJECT_ID=[key here]
+VERTEXAI_PROJECT_ID=[key here]
 HF_TOKEN_READ=[key here]
 HF_TOKEN_WRITE=[key here]
 ```
