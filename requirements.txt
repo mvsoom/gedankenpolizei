@@ -1,12 +1,8 @@
 google-cloud-aiplatform==1.55.0
-kiwisolver==1.4.5
 Markdown==3.6
 numpy==1.26.4
-pandas==2.2.2
 pillow==10.3.0
-pyarrow==17.0.0  # deptry will complain about this, but don't remove it
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 PyYAML==6.0.1
 requests==2.32.1
-tqdm==4.66.4
