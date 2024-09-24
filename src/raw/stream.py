@@ -11,8 +11,6 @@ from math import exp, floor
 from sys import exit
 from time import sleep, time
 
-import pandas as pd
-
 from src import STARTTIME
 from src.config import CONFIG, ConfigArgumentParser
 from src.fast.frame import Frame
@@ -90,8 +88,8 @@ def slow_stream(args, slowq):
         sample_random_thought,
     )
 
-    walk = sample_random_thought()
-    slowq.put_downwards(walk.iloc[-1].text, block=False)
+    walk = [sample_random_thought()]
+    slowq.put_downwards(walk[-1]["metadata"]["text"], block=False)
 
     while True:
         start, end = slowq.get_from_below(block=True)
@@ -101,8 +99,8 @@ def slow_stream(args, slowq):
         else:
             thought = sample_nearby_thought(walk, start, end)
 
-        slowq.put_downwards(thought.iloc[0].text, block=False)
-        walk = pd.concat([walk, thought])
+        slowq.put_downwards(thought["metadata"]["text"], block=False)
+        walk.append(thought)
 
 
 def fast_thoughts_from(inputs):

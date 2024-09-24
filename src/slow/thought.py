@@ -2,14 +2,15 @@ import numpy as np
 
 from src.config import CONFIG
 from src.log import debug
-from src.slow.df import SLOWDF  # Takes a while
+from src.pinecone import NAMESPACE, resolve_index
 from src.slow.embed import (  # Takes a while
     bias_step,
     compute_bias_matrix,
     embed,
+    random,
 )
 
-EMBEDDINGS = np.stack(SLOWDF["embedding"], dtype="float32")
+INDEX = resolve_index()
 
 BIAS_MATRIX = compute_bias_matrix(
     CONFIG("slow.bias.overall_multiplier"),
@@ -20,24 +21,35 @@ INTENSITY = CONFIG("slow.bias.intensity")
 MAX_STEPS = CONFIG("slow.walk.max_steps")
 
 
-def sample_random_thought(history=None):
-    if history is None:
-        return SLOWDF.sample()
-    else:
-        # Return unique sample not in `history`
-        return SLOWDF.loc[~SLOWDF.index.isin(history.index)].sample()
+def ids(history):
+    return [h["id"] for h in history]
 
 
-def nearest_neighbor(query, embeddings=EMBEDDINGS):
-    """Find the nearest neighbor in `SLOWDF` to `query`
+def sample_random_thought(history=None, maxtries=100):
+    for _ in range(maxtries):
+        vector = random()
+        candidate = nearest_neighbor(vector)
+        if history is None or candidate["id"] not in ids(history):
+            return candidate
 
-    Note: assuming all embeddings are normalized, we can minimize distance by maximizing dot product"""
-    dp = np.dot(embeddings, query)
-    return SLOWDF.iloc[[np.argmax(dp)]]
+    return candidate
+
+
+def nearest_neighbor(vector):
+    reply = INDEX.query(
+        namespace=NAMESPACE,
+        vector=vector,
+        top_k=1,
+        include_values=True,
+        include_metadata=True,
+    )
+
+    nn = reply["matches"][0].to_dict()
+    return nn
 
 
 def sample_nearby_thought(walk, start, end):
-    current = walk.iloc[-1].embedding
+    current = walk[-1]["values"]
 
     step = embed(end) - embed(start)
 
@@ -60,7 +72,7 @@ def sample_nearby_thought(walk, start, end):
         current = current + biased_step
 
         candidate = nearest_neighbor(current)
-        if not candidate.index.isin(walk.index):
+        if candidate["id"] not in ids(walk):
             return candidate
 
         biased_step *= 2.0
