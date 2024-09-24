@@ -1,21 +1,21 @@
 """Upload a post .feather file to Pinecone"""
 
-import os
 from sys import exit
 
 import dotenv
 import numpy as np
 import pandas as pd
-from pinecone.grpc import PineconeGRPC as Pinecone
 
-from src.config import CONFIG, ConfigArgumentParser
+from src.config import ConfigArgumentParser
+from src.pinecone import (
+    INDEX,
+    METADATA_SIZE_THRESHOLD,
+    NAMESPACE,
+    get_ids_present,
+    resolve_index,
+)
 
 dotenv.load_dotenv()
-
-
-INDEX = CONFIG("pinecone.index")
-NAMESPACE = CONFIG("pinecone.namespace")
-METADATA_SIZE_THRESHOLD = CONFIG("pinecone.metadata_size_threshold")
 
 
 def is_embedding_valid(embedding):
@@ -28,12 +28,6 @@ def validate(df):
     assert len(df) == df.index.nunique()
 
 
-def get_ids_present(index):
-    for ids in index.list(namespace=NAMESPACE):
-        for id in ids:
-            yield id
-
-
 def utf8_length(s):
     if pd.isna(s):
         return 0
@@ -42,9 +36,7 @@ def utf8_length(s):
 
 def main(args):
     print(f"Connecting to Pinecone index {INDEX}")
-    api_key = os.getenv("PINECONE_API_KEY")
-    pc = Pinecone(api_key=api_key)
-    index = pc.Index(INDEX)
+    index = resolve_index()
 
     print(f"Loading {args.postfile}")
     pdf = pd.read_feather(args.postfile)
