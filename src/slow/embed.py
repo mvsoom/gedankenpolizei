@@ -18,6 +18,11 @@ def allnan():
     return np.full(MODEL.dimension, np.nan, dtype=DTYPE)
 
 
+def random():
+    e = np.random.randn(MODEL.dimension).astype(DTYPE)
+    return e / norm(e)
+
+
 def embed(
     text_input,
     dimension=MODEL.dimension,
@@ -45,9 +50,12 @@ def embed(
         inputs, auto_truncate=True, output_dimensionality=dimension
     )
 
-    return np.vstack(
-        [embedding.values for embedding in embeddings], dtype=DTYPE
-    ).squeeze()
+    embeddings = np.vstack([embedding.values for embedding in embeddings], dtype=DTYPE)
+
+    # Impose normalization!
+    embeddings = embeddings / norm(embeddings, axis=1)[:, None]
+
+    return embeddings.squeeze()
 
 
 def compute_bias_matrix(overall_multiplier, directions):
