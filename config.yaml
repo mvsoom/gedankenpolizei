@@ -18,6 +18,13 @@ gemini:
     pro:
       name: gemini-1.5-pro-001 # Discontinued on May 24, 2025
 
+
+pinecone:
+  index: v1
+  namespace: slow
+  metadata_size_threshold: 40000 # bytes
+
+
 slow:
   embed:
     model:
