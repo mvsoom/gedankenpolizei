@@ -66,7 +66,8 @@ slow:
   pace: 0.5
   
   walk:
-    max_steps: 10
+    max_steps: 10   # How many steps in embedding space before giving up
+    max_memory: 500 # How many accepted SLOW thoughts to remember
 
 fast:
   # If both dimensions of an image's aspect ratio are less than or equal to 384, then 258 tokens are used (per https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/image-understanding#image-requirements)

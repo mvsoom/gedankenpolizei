@@ -36,6 +36,7 @@ MODEL = gemini(
 MAX_FAST_INPUTS = CONFIG("raw.max_fast_inputs")
 
 SLOW_PACE = CONFIG("slow.pace")
+SLOW_WALK_MAX_MEMORY = CONFIG("slow.walk.max_memory")
 
 RAW_MEMORY_SIZE = CONFIG("raw.memory_size")
 RAW_PACE = CONFIG("raw.pace")
@@ -88,7 +89,10 @@ def slow_stream(args, slowq):
         sample_random_thought,
     )
 
-    walk = [sample_random_thought()]
+    walk = deque(maxlen=SLOW_WALK_MAX_MEMORY)
+
+    thought = sample_random_thought()
+    walk.append(thought)
     slowq.put_downwards(walk[-1]["metadata"]["text"], block=False)
 
     while True:
