@@ -1,6 +1,7 @@
 """Embedding algebra"""
 
 import numpy as np
+from google.api_core.exceptions import InvalidArgument
 from numpy.linalg import norm
 from vertexai.language_models import TextEmbeddingInput
 
@@ -10,15 +11,19 @@ MODEL = embedder()
 DTYPE = np.float32
 
 
-def zero():
+def zero_vector():
     return np.zeros(MODEL.dimension, dtype=DTYPE)
 
 
-def allnan():
+def allnan_vector():
     return np.full(MODEL.dimension, np.nan, dtype=DTYPE)
 
 
-def random():
+def is_valid_vector(embedding):
+    return not np.any(np.isnan(embedding))
+
+
+def random_vector():
     e = np.random.randn(MODEL.dimension).astype(DTYPE)
     return e / norm(e)
 
@@ -26,36 +31,24 @@ def random():
 def embed(
     text_input,
     dimension=MODEL.dimension,
-    max_batch_size=MODEL.max_batch_size,
     task=MODEL.task,
 ):
-    """Embed a single text or list (batch) of texts
+    """Embed a single string and output the normalized embedding vector"""
+    inputs = [TextEmbeddingInput(text_input, task)]
 
-    If text_input is a list, the output is a 2D array with one embedding per row; otherwise just the embedding vector
-    """
-    is_batch = isinstance(text_input, list)
-    texts = text_input if is_batch else [text_input]
-
-    if len(texts) > max_batch_size:
-        batches = [
-            texts[i : i + max_batch_size] for i in range(0, len(texts), max_batch_size)
-        ]
-        return np.vstack(
-            [embed(batch, dimension, max_batch_size, task) for batch in batches]
+    try:
+        embeddings = MODEL.get_embeddings(
+            inputs, auto_truncate=False, output_dimensionality=dimension
         )
+    except InvalidArgument as e:
+        # TODO: handle too long inputs -- maybe by truncating from beginning or end?
+        # Example text: "400 Input texts at positions {0} are longer than the maximum number of tokens for this model (2048). Actual token counts: {42908}"
+        # See reembed.ipynb for more details
+        raise e
 
-    inputs = [TextEmbeddingInput(text, task) for text in texts]
-
-    embeddings = MODEL.get_embeddings(
-        inputs, auto_truncate=True, output_dimensionality=dimension
-    )
-
-    embeddings = np.vstack([embedding.values for embedding in embeddings], dtype=DTYPE)
-
-    # Impose normalization!
-    embeddings = embeddings / norm(embeddings, axis=1)[:, None]
-
-    return embeddings.squeeze()
+    embedding = np.array(embeddings[0].values)
+    embedding /= norm(embedding)
+    return embedding
 
 
 def compute_bias_matrix(overall_multiplier, directions):
@@ -67,7 +60,7 @@ def compute_bias_matrix(overall_multiplier, directions):
         bs = [construct_bias_direction(d) for d in directions]
         B = np.stack(bs, axis=-1)  # (embedding_dimension, num_vectors)
     else:
-        B = zero()[:, None]
+        B = zero_vector()[:, None]
 
     return B
 

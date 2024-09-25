@@ -14,12 +14,9 @@ from src.pinecone import (
     get_ids_present,
     resolve_index,
 )
+from src.slow.embed import is_valid_vector
 
 dotenv.load_dotenv()
-
-
-def is_embedding_valid(embedding):
-    return not np.any(np.isnan(embedding))
 
 
 def validate(df):
@@ -43,7 +40,7 @@ def main(args):
 
     print("Finding eligible posts to upload")
     processed = pdf[pdf.embedding.notna()]
-    valid = processed["embedding"].apply(is_embedding_valid)
+    valid = processed["embedding"].apply(is_valid_vector)
     eligible = processed[valid]
 
     print("Validating")

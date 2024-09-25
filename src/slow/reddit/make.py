@@ -12,7 +12,7 @@ from tqdm import tqdm
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
 from src.config import ConfigArgumentParser
-from src.slow.embed import allnan, embed
+from src.slow.embed import allnan_vector, embed
 from src.slow.reddit import patterns
 from src.slow.reddit.vet import ask_gemini, formatpost, parse_prediction
 
@@ -168,9 +168,9 @@ def embed_row(post, score):
             embedding = embed(post)
         except ResourceExhausted:
             verbose("Embedding failed due to resource exhaustion")
-            embedding = np.nan
+            embedding = np.nan  # Mark as "to retry later"
     else:
-        embedding = allnan()
+        embedding = allnan_vector()
     return embedding
 
 

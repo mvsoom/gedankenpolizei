@@ -30,7 +30,6 @@ slow:
     model:
       name: text-multilingual-embedding-002
       dimension: 768
-      max_batch_size: 5
       task: SEMANTIC_SIMILARITY
       
   reddit:

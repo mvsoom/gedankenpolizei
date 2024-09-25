@@ -58,7 +58,6 @@ def embedder():
 
     model.dimension = CONFIG("slow.embed.model.dimension")
     model.task = CONFIG("slow.embed.model.task")
-    model.max_batch_size = CONFIG("slow.embed.model.max_batch_size")
 
     return model
 

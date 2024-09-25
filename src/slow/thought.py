@@ -7,7 +7,8 @@ from src.slow.embed import (  # Takes a while
     bias_step,
     compute_bias_matrix,
     embed,
-    random,
+    is_valid_vector,
+    random_vector,
 )
 
 INDEX = resolve_index()
@@ -27,7 +28,7 @@ def ids(history):
 
 def sample_random_thought(history=None, maxtries=100):
     for _ in range(maxtries):
-        vector = random()
+        vector = random_vector()
         candidate = nearest_neighbor(vector)
         if history is None or candidate["id"] not in ids(history):
             return candidate
@@ -36,6 +37,9 @@ def sample_random_thought(history=None, maxtries=100):
 
 
 def nearest_neighbor(vector):
+    if not is_valid_vector(vector):
+        raise ValueError(f"Invalid vector {vector}")
+
     reply = INDEX.query(
         namespace=NAMESPACE,
         vector=vector,
