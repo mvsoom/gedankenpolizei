@@ -585,49 +585,60 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             context.textAlign = 'left';
 
             const X_OFFSET = 20;
-
+            const MAX_TEXT_WIDTH = canvas.width - X_OFFSET * 2;
+            const maxLines = Math.floor((canvas.height - TEXT_OFFSET) / LINE_HEIGHT);
             let currentY = TEXT_OFFSET;
-            let visibleText = [];
 
-            // Implement word wrapping
-            let lines = textBuffer.split('\n');
-            lines.forEach(line => {
-                let words = line.split(' ');
-                let currentLine = '';
+            let wrappedText = '';
+            let lastWhitespaceIndex = -1;
+            let lineStartIndex = 0;
 
-                words.forEach((word, index) => {
-                    if (index !== words.length - 1) {
-                        word = word + ' ';
-                    }
+            for (let i = 0; i < textBuffer.length; i++) {
+                let char = textBuffer[i];
+                wrappedText += char;
 
-                    let testLine = currentLine + word;
-                    let testWidth = context.measureText(testLine).width;
+                // Handle newlines as hard wraps
+                if (char === '\n') {
+                    lineStartIndex = wrappedText.length;
+                    lastWhitespaceIndex = -1;
+                    continue;
+                }
 
-                    if (testWidth > MAX_TEXT_WIDTH && currentLine !== '') {
-                        visibleText.push(currentLine);
-                        currentLine = word;
+                if (/\s/.test(char)) {
+                    lastWhitespaceIndex = wrappedText.length - 1;
+                }
+
+                let currentLine = wrappedText.substring(lineStartIndex);
+                let lineWidth = context.measureText(currentLine).width;
+
+                if (lineWidth > MAX_TEXT_WIDTH) {
+                    if (lastWhitespaceIndex >= lineStartIndex) {
+                        // Insert a newline *at* the last whitespace position
+                        wrappedText = wrappedText.substring(0, lastWhitespaceIndex) + '\n' + wrappedText.substring(lastWhitespaceIndex);
+                        lineStartIndex = lastWhitespaceIndex;
                     } else {
-                        currentLine = testLine;
+                        // No whitespace found, but must wrap anyway; insert a newline before the current character to break the line
+                        wrappedText = wrappedText.substring(0, wrappedText.length - 1) + '\n' + char;
+                        lineStartIndex = wrappedText.length;
                     }
-                });
-
-                visibleText.push(currentLine);
-            });
-
-            while ((visibleText.length * LINE_HEIGHT) > (canvas.height - TEXT_OFFSET)) {
-                visibleText.shift();
+                    lastWhitespaceIndex = -1;
+                }
             }
 
-            visibleText.forEach((line, index) => {
+            let visibleText = wrappedText.split('\n');
+            if (visibleText.length > maxLines) {
+                visibleText = visibleText.slice(-maxLines);
+            }
+            for (let line of visibleText) {
                 context.fillText(line, X_OFFSET, currentY);
                 currentY += LINE_HEIGHT;
-            });
+            }
 
-            // Reconstruct the text buffer string from the visible text
             textBuffer = visibleText.join('\n');
 
             textMesh.material.map.needsUpdate = true;
         }
+
 
         // ---------------------------------------------------------------------------
         // Event handlers
