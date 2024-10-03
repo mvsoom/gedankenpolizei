@@ -8,7 +8,7 @@ from vertexai.language_models import TextEmbeddingInput
 from src.vertex import embedder
 
 MODEL = embedder()
-DTYPE = np.float32
+DTYPE = np.float32  # Don't set to np.float64, as it will cause memory issues
 
 
 def zero_vector():
@@ -38,17 +38,18 @@ def embed(
 
     try:
         embeddings = MODEL.get_embeddings(
-            inputs, auto_truncate=False, output_dimensionality=dimension
+            inputs, auto_truncate=True, output_dimensionality=dimension
         )
     except InvalidArgument as e:
         # TODO: handle too long inputs -- maybe by truncating from beginning or end?
+        # Then set auto_truncate=False!
         # Example text: "400 Input texts at positions {0} are longer than the maximum number of tokens for this model (2048). Actual token counts: {42908}"
         # See reembed.ipynb for more details
         raise e
 
     embedding = np.array(embeddings[0].values)
     embedding /= norm(embedding)
-    return embedding
+    return embedding.astype(DTYPE)
 
 
 def compute_bias_matrix(overall_multiplier, directions):

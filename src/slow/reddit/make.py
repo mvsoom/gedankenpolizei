@@ -7,7 +7,6 @@ from sys import exit
 
 import numpy as np
 import pandas as pd
-from google.api_core.exceptions import ResourceExhausted
 from tqdm import tqdm
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
@@ -16,14 +15,21 @@ from src.slow.embed import allnan_vector, embed
 from src.slow.reddit import patterns
 from src.slow.reddit.vet import ask_gemini, formatpost, parse_prediction
 
+INDEX = "id"
 COLUMNS = ["created_utc", "subreddit", "author", "post", "labels", "score", "embedding"]
+
+
+def empty_dataframe():
+    index = pd.Index([], dtype="object", name=INDEX)
+    df = pd.DataFrame(index=index, columns=COLUMNS)
+    return df
 
 
 def read_dfs(inputs):
     dfs = [pd.read_feather(input) for input in inputs]
 
     for df in dfs:
-        if df.index.name != "id" or df.index.dtype != "object":
+        if df.index.name != INDEX or df.index.dtype != "object":
             raise ValueError("Bad indices")
 
     df = pd.concat(dfs)
@@ -113,15 +119,23 @@ def maybe_update(df, outputfile):
     try:
         old = pd.read_feather(outputfile)
     except FileNotFoundError:
+        verbose(f"Output file {outputfile} not found for updating")
         return df
 
-    new = df.index.difference(old.index)
-    df = pd.concat([old, df.loc[new]])
+    if not old.empty:  # Pandas can't deal with empty dfs
+        if not df.empty:
+            new = df.index.difference(old.index)
+            df = pd.concat([old, df.loc[new]])
+        else:
+            df = old
 
     return df
 
 
 def apply(df, f, result, args, maxops=-1, show_progress=False):
+    if df.empty:  # Pandas can't handle empty dfs consistently
+        return df
+
     if result not in df.columns:
         df = invalidate(df, [result])  # Mark all as to-do
 
@@ -166,8 +180,8 @@ def embed_row(post, score):
     if score > 0:
         try:
             embedding = embed(post)
-        except ResourceExhausted:
-            verbose("Embedding failed due to resource exhaustion")
+        except Exception as e:
+            verbose(f"Embedding failed: {e}")
             embedding = np.nan  # Mark as "to retry later"
     else:
         embedding = allnan_vector()
@@ -175,7 +189,10 @@ def embed_row(post, score):
 
 
 def main(args):
-    df = read_dfs(args.inputfile)
+    if args.inputfiles:
+        df = read_dfs(args.inputfiles)
+    else:
+        df = empty_dataframe()
 
     if args.update:
         df = maybe_update(df, args.outputfile)
@@ -215,9 +232,10 @@ if __name__ == "__main__":
     parser = ConfigArgumentParser(description=__doc__)
 
     parser.add_argument(
-        "inputfile",
-        nargs="+",
-        help="Input .feather files containing normalized submissions",
+        "inputfiles",
+        nargs="*",
+        default=[],
+        help="Optional input .feather files containing normalized submissions",
     )
     parser.add_argument("outputfile", help="Output .feather file to write results to")
     parser.add_argument(
