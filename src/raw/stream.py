@@ -98,13 +98,17 @@ def slow_stream(args, slowq):
     while True:
         start, end = slowq.get_from_below(block=True)
 
-        if args.random_slow_thoughts:
-            thought = sample_random_thought(walk)
-        else:
-            thought = sample_nearby_thought(walk, start, end)
+        try:
+            if args.random_slow_thoughts:
+                thought = sample_random_thought(walk)
+            else:
+                thought = sample_nearby_thought(walk, start, end)
 
-        slowq.put_downwards(thought["metadata"]["text"], block=False)
-        walk.append(thought)
+            slowq.put_downwards(thought["metadata"]["text"], block=False)
+            walk.append(thought)
+        except Exception as e:
+            # Most likely a timeout or a connection error from embed()
+            error(f"Exception during SLOW thought sampling: {e}", exc_info=True)
 
 
 def fast_thoughts_from(inputs):
