@@ -172,8 +172,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Settings
         // ---------------------------------------------------------------------------
 
-        // Scene
-        const INITIAL_CAMERA_Z = 1500;
 
         // Controls GUI
         let gui; // Declare gui globally
@@ -188,12 +186,15 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Text display
         const TEXT_CANVAS_WIDTH = 600;
         const TEXT_CANVAS_HEIGHT = 480;
+        const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
+
         const FONT_SIZE = 20;
         const FONT_FAMILY = 'Arial';
         const TEXT_STYLE = `rgba(255, 255, 255, 1.0)`;
+
         const LINE_HEIGHT = 24;
-        const TEXT_OFFSET = 50;
-        const MAX_TEXT_WIDTH = TEXT_CANVAS_WIDTH - 40;
+        const TEXT_X_OFFSET = 20;
+        const TEXT_Y_OFFSET = 50;
 
         // Audio
         const AUDIO_GAIN = 5.0;
@@ -207,6 +208,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_URL = 'ws://localhost:8766';
         const WS_TEXT_RETRY = 500; // msec
 
+        // Scene
         let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
@@ -584,10 +586,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             context.fillStyle = TEXT_STYLE;
             context.textAlign = 'left';
 
-            const X_OFFSET = 20;
-            const MAX_TEXT_WIDTH = canvas.width - X_OFFSET * 2;
-            const maxLines = Math.floor((canvas.height - TEXT_OFFSET) / LINE_HEIGHT);
-            let currentY = TEXT_OFFSET;
+            const MAX_TEXT_WIDTH = canvas.width - TEXT_X_OFFSET * 2;
+            const maxLines = Math.floor((canvas.height - TEXT_Y_OFFSET) / LINE_HEIGHT);
+            let currentY = TEXT_Y_OFFSET;
 
             let wrappedText = '';
             let lastWhitespaceIndex = -1;
@@ -630,7 +631,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 visibleText = visibleText.slice(-maxLines);
             }
             for (let line of visibleText) {
-                context.fillText(line, X_OFFSET, currentY);
+                context.fillText(line, TEXT_X_OFFSET, currentY);
                 currentY += LINE_HEIGHT;
             }
 
