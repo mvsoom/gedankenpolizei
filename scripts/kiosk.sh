@@ -1,3 +1,4 @@
+export DISPLAY=:0
 chromium-browser "$1" \
   --start-fullscreen \
   --kiosk \
