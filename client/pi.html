@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<!--
+Note: this is a single large HTML file to sidestep CORS issues.
+Script is heavily based on three.js examples: https://threejs.org/examples/
+-->
+<html lang="en">
+<head>
+    <title>gedankenpolizei</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        /* Styling taken from Three.js examples */
+        :root {
+            color-scheme: light dark;
+            --background-color: #fff;
+            --secondary-background-color: #f7f7f7;
+            --color-blue: #049EF4;
+            --text-color: #444;
+            --secondary-text-color: #9e9e9e;
+            --font-size: 16px;
+            --line-height: 26px;
+            --border-style: 2px solid #E8E8E8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #222;
+                --secondary-background-color: #2e2e2e;
+                --text-color: #bbb;
+                --secondary-text-color: #666;
+                --border-style: 2px solid #444;
+            }
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000; /* Ensure this is black; otherwise lens distortion reveals a grey band (the default body background-color I guess) */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #infoBox {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: calc(var(--font-size) - 2px);
+            color: var(--text-color);
+            border-radius: 5px;
+            border: var(--border-style);
+            background-color: rgba(0, 0, 0, 0.5); /* Added background color for better visibility */
+        }
+
+        #infoBox p {
+            margin-top: 0.3em;
+            margin-bottom: 0.3em;
+        }
+
+        #infoBox .centered {
+            text-align: center; /* Center the first paragraph */
+        }
+
+        #infoBox .aligned {
+            display: flex;
+            justify-content: space-between;
+            white-space: pre; /* Preserve spaces */
+        }
+    </style>
+</head>
+<body>
+    <div id="infoBox">
+        <p class="centered"><strong>gedankenpolizei</strong></p>
+        <p class="aligned">[SPACE] (un)lock camera</p>
+        <p class="aligned">    [C] toggle controls</p>
+        <p class="aligned">    [M] (un)mute</p>
+        <p class="aligned">    [L] log parameters</p>
+    </div>
+
+    <!-- This shader colors each point based on the webcam texture -->
+    <script id="fs" type="x-shader/x-fragment">
+        uniform sampler2D map;
+        varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(map, vUv);
+            gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
+        }
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/",
+                "three-lens-distortion": "https://cdn.jsdelivr.net/gh/ycw/three-lens-distortion@1.0.0/src/index.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass";
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+        import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
+        import { LensDistortionPassGen } from 'three-lens-distortion';
+        import { EdgesGeometry } from 'three';
+
+        // ---------------------------------------------------------------------------
+        // Settings
+        // ---------------------------------------------------------------------------
+
+        // Controls GUI
+        let gui; // Declare gui globally
+        let controlsVisible = false; // Track the visibility of controls
+
+        // Text display
+        const textDisplayParams = {
+            TEXT_CANVAS_WIDTH: 600,
+            TEXT_CANVAS_HEIGHT: 480,
+            FONT_SIZE: 20,
+            FONT_FAMILY: 'Arial',
+            TEXT_STYLE: 'rgba(255, 255, 255, 1.0)',
+            LINE_HEIGHT: 24,
+            TEXT_X_OFFSET: 20,
+            TEXT_Y_OFFSET: 50,
+        };
+
+        // Audio
+        const AUDIO_GAIN = 5.0;
+        const CLICK_SOUND_DURATION = 80; // msec
+
+        // Websocket
+        const WS_TEXT_URL = 'ws://localhost:8766';
+        const WS_TEXT_RETRY = 500; // msec
+
+        // Scene
+        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass;
+        let mouse, center;
+        const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
+        let targetCameraPosition = initialCameraPosition.clone();
+        let textMesh;
+        let textBuffer = ""; // Buffer for incoming text
+        let cameraLocked = true; // Flag to lock the camera
+
+        // Variables for PositionalAudio
+        let listener, pinkNoise, gainNode, currentGain = AUDIO_GAIN;
+        let isMuted = false; // Flag to mute the sound
+
+        // Edge outline for text panel
+        let textMeshEdges;
+        let edgesVisible = true; // Control the visibility of edges based on infoBox visibility
+
+        window.onload = init;
+
+        // ---------------------------------------------------------------------------
+        // Setup scene and websockets
+        // ---------------------------------------------------------------------------
+        function init() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            // Setup camera
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.copy(initialCameraPosition);
+
+            // Initialize cameraParams
+            const cameraParams = {
+                positionX: camera.position.x,
+                positionY: camera.position.y,
+                positionZ: camera.position.z,
+            };
+
+            // Setup scene and renderer
+            scene = new THREE.Scene();
+            center = new THREE.Vector3();
+            center.z = -1000;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setAnimationLoop(animate);
+            container.appendChild(renderer.domElement);
+
+            // Setup postprocessing
+            composer = new EffectComposer(renderer);
+            composer.addPass(new RenderPass(scene, camera));
+
+            // Bloom pass
+            bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                1.5, // Strength
+                0.4, // Radius
+                0.85 // Threshold
+            );
+            composer.addPass(bloomPass);
+
+            // Color to grayscale conversion
+            const effectGrayScale = new ShaderPass(LuminosityShader);
+            composer.addPass(effectGrayScale);
+
+            // Sobel operator
+            effectSobel = new ShaderPass(SobelOperatorShader);
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
+            effectSobel.enabled = false;
+            composer.addPass(effectSobel);
+
+            // Lens distortion
+            const LensDistortionPass = LensDistortionPassGen({ THREE, Pass, FullScreenQuad });
+            lensDistortionPass = new LensDistortionPass({
+                distortion: new THREE.Vector2(0.1, 0.1),
+                principalPoint: new THREE.Vector2(0.0, 0.0),
+                focalLength: new THREE.Vector2(1.0, 1.0),
+                skew: 0.0
+            });
+            composer.addPass(lensDistortionPass);
+
+            // Handle user input
+            mouse = new THREE.Vector3(0, 0, 1);
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            document.addEventListener('mouseleave', onDocumentMouseLeave);
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('wheel', onDocumentMouseWheel);
+
+            document.addEventListener('touchstart', onDocumentTouchStart, false);
+            document.addEventListener('touchmove', onDocumentTouchMove, false);
+
+            document.addEventListener('keydown', onDocumentKeyDown);
+
+            // Hide the GUI by default
+            gui = new GUI();
+            gui.hide();
+
+            // Add bloom controls to GUI
+            const bloomFolder = gui.addFolder('Bloom');
+            bloomFolder.add(bloomPass, 'strength', 0, 3, 0.01).name('Strength');
+            bloomFolder.add(bloomPass, 'radius', 0, 1, 0.01).name('Radius');
+            bloomFolder.add(bloomPass, 'threshold', 0, 1, 0.01).name('Threshold');
+            bloomFolder.close();
+
+            // Add Sobel edge detection enable/disable control to GUI
+            const sobelFolder = gui.addFolder('Sobel Edge Detection');
+            sobelFolder.add(effectSobel, 'enabled').name('Enable');
+            sobelFolder.close();
+
+            // Add lens distortion controls to GUI
+            const lensDistortionFolder = gui.addFolder('Lens Distortion');
+            lensDistortionFolder.add(lensDistortionPass.distortion, 'x', -1, 1, 0.01).name('Distortion X');
+            lensDistortionFolder.add(lensDistortionPass.distortion, 'y', -1, 1, 0.01).name('Distortion Y');
+            lensDistortionFolder.add(lensDistortionPass.principalPoint, 'x', -0.5, 0.5, 0.01).name('Principal Point X');
+            lensDistortionFolder.add(lensDistortionPass.principalPoint, 'y', -0.5, 0.5, 0.01).name('Principal Point Y');
+            lensDistortionFolder.add(lensDistortionPass.focalLength, 'x', 0, 2, 0.01).name('Focal Length X');
+            lensDistortionFolder.add(lensDistortionPass.focalLength, 'y', 0, 2, 0.01).name('Focal Length Y');
+            lensDistortionFolder.add(lensDistortionPass, 'skew', -Math.PI / 2, Math.PI / 2, 0.01).name('Skew');
+            lensDistortionFolder.close();
+
+            // Add Text Display controls to GUI
+            const textDisplayFolder = gui.addFolder('Text Display');
+            textDisplayFolder.add(textDisplayParams, 'TEXT_CANVAS_WIDTH', 100, 2000, 1).name('Canvas Width').onChange(updateTextCanvasDimensions);
+            textDisplayFolder.add(textDisplayParams, 'TEXT_CANVAS_HEIGHT', 100, 2000, 1).name('Canvas Height').onChange(updateTextCanvasDimensions);
+            textDisplayFolder.add(textDisplayParams, 'FONT_SIZE', 1, 100, 1).name('Font Size').onChange(updateTextCanvas);
+            textDisplayFolder.add(textDisplayParams, 'FONT_FAMILY').name('Font Family').onChange(updateTextCanvas);
+            textDisplayFolder.addColor(textDisplayParams, 'TEXT_STYLE').name('Text Style').onChange(updateTextCanvas);
+            textDisplayFolder.add(textDisplayParams, 'LINE_HEIGHT', 1, 200, 1).name('Line Height').onChange(updateTextCanvas);
+            textDisplayFolder.add(textDisplayParams, 'TEXT_X_OFFSET', 0, 500, 1).name('Text X Offset').onChange(updateTextCanvas);
+            textDisplayFolder.add(textDisplayParams, 'TEXT_Y_OFFSET', 0, 500, 1).name('Text Y Offset').onChange(updateTextCanvas);
+            textDisplayFolder.close();
+
+            // Add Camera controls to GUI
+            const cameraFolder = gui.addFolder('Camera');
+            cameraFolder.add(cameraParams, 'positionX').name('Position X').onChange(updateCameraPosition);
+            cameraFolder.add(cameraParams, 'positionY').name('Position Y').onChange(updateCameraPosition);
+            cameraFolder.add(cameraParams, 'positionZ').name('Position Z').onChange(updateCameraPosition);
+            cameraFolder.close();
+
+            setupTextCanvas();
+            connectWebSocketText();
+            setupAudio();
+
+            function updateCameraPosition() {
+                camera.position.set(cameraParams.positionX, cameraParams.positionY, cameraParams.positionZ);
+                camera.lookAt(center);
+            }
+        }
+
+        function animate() {
+            if (!cameraLocked) {
+                camera.position.lerp(targetCameraPosition, 0.05);
+                camera.lookAt(center);
+            }
+            composer.render(); // Use composer instead of renderer
+        }
+
+        // ---------------------------------------------------------------------------
+        // Audio
+        // ---------------------------------------------------------------------------
+        function setupAudio() {
+            listener = new THREE.AudioListener();
+            camera.add(listener);
+            pinkNoise = createPinkNoise(listener.context);
+
+            // Create GainNode to control pinkNoise volume
+            gainNode = listener.context.createGain();
+            gainNode.gain.value = currentGain;
+
+            // Add gain control to Controls GUI
+            const audioFolder = gui.addFolder('Audio');
+            const gainControl = audioFolder.add(gainNode.gain, 'value', 0.0, AUDIO_GAIN * 2, 1).name('Volume').listen();
+            gainControl.onChange((value) => {
+                if (!isMuted) {
+                    currentGain = AUDIO_GAIN; // Update current gain value when not muted
+                }
+            });
+            audioFolder.close();
+        }
+
+        function normalRandom() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function createPinkNoise(audioContext) {
+            const bufferSize = 4096;
+            const node = audioContext.createScriptProcessor(bufferSize, 1, 1);
+            let b0, b1, b2, b3, b4, b5, b6;
+            b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
+
+            node.onaudioprocess = function (e) {
+                const output = e.outputBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = normalRandom();
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    output[i] *= 0.11; // (roughly) compensate for gain
+                    b6 = white * 0.115926;
+
+                    output[i] /= 400; // Normalize the pink noise
+                    output[i] /= Math.sqrt(1 - i / bufferSize); // Fade out the pink noise
+                }
+            };
+
+            return node;
+        }
+
+        function playClickSound() {
+            // Start and stop the pink noise after a short duration
+            pinkNoise.connect(gainNode).connect(listener.context.destination);
+            setTimeout(() => {
+                pinkNoise.disconnect();
+            }, CLICK_SOUND_DURATION);
+        }
+
+        function toggleMute(mute) {
+            if (mute) {
+                currentGain = gainNode.gain.value; // Remember the current gain
+                gainNode.gain.value = 0;
+            } else {
+                gainNode.gain.value = currentGain; // Restore the remembered gain
+            }
+            isMuted = mute;
+        }
+
+        // ---------------------------------------------------------------------------
+        // Setup text canvas to display incoming text
+        // ---------------------------------------------------------------------------
+        function setupTextCanvas() {
+            const canvas = document.createElement('canvas');
+            canvas.width = textDisplayParams.TEXT_CANVAS_WIDTH;
+            canvas.height = textDisplayParams.TEXT_CANVAS_HEIGHT;
+            const context = canvas.getContext('2d');
+
+            const textTexture = new THREE.CanvasTexture(canvas);
+            textTexture.needsUpdate = true;
+
+            const textMaterial = new THREE.MeshBasicMaterial({
+                map: textTexture,
+                transparent: true,
+            });
+            const textGeometry = new THREE.PlaneGeometry(textDisplayParams.TEXT_CANVAS_WIDTH, textDisplayParams.TEXT_CANVAS_HEIGHT);
+            textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.set(0, 0, 100);
+            scene.add(textMesh);
+
+            // Create edges for the textMesh
+            const edgesGeometry = new THREE.EdgesGeometry(textMesh.geometry);
+            const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+            textMeshEdges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+            textMeshEdges.position.copy(textMesh.position);
+            scene.add(textMeshEdges);
+
+            // Initially set edges visibility based on infoBox visibility
+            const infoBox = document.getElementById('infoBox');
+            edgesVisible = infoBox.style.display !== 'none';
+            textMeshEdges.visible = edgesVisible;
+        }
+
+        function updateTextCanvasDimensions() {
+            // Update canvas dimensions and mesh geometry
+            const canvas = textMesh.material.map.image;
+            canvas.width = textDisplayParams.TEXT_CANVAS_WIDTH;
+            canvas.height = textDisplayParams.TEXT_CANVAS_HEIGHT;
+            textMesh.geometry = new THREE.PlaneGeometry(textDisplayParams.TEXT_CANVAS_WIDTH, textDisplayParams.TEXT_CANVAS_HEIGHT);
+            textMesh.material.map.needsUpdate = true;
+
+            // Update edges geometry
+            const edgesGeometry = new THREE.EdgesGeometry(textMesh.geometry);
+            textMeshEdges.geometry.dispose();
+            textMeshEdges.geometry = edgesGeometry;
+
+            updateTextCanvas();
+        }
+
+        // Update the text canvas with new messages
+        function updateTextCanvas() {
+            const canvas = textMesh.material.map.image;
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.font = `bold ${textDisplayParams.FONT_SIZE}px ${textDisplayParams.FONT_FAMILY}`;
+            context.fillStyle = textDisplayParams.TEXT_STYLE;
+            context.textAlign = 'left';
+
+            const MAX_TEXT_WIDTH = textDisplayParams.TEXT_CANVAS_WIDTH - textDisplayParams.TEXT_X_OFFSET * 2;
+            const maxLines = Math.floor((canvas.height - textDisplayParams.TEXT_Y_OFFSET) / textDisplayParams.LINE_HEIGHT);
+            let currentY = textDisplayParams.TEXT_Y_OFFSET;
+
+            let wrappedText = '';
+            let lastWhitespaceIndex = -1;
+            let lineStartIndex = 0;
+
+            for (let i = 0; i < textBuffer.length; i++) {
+                let char = textBuffer[i];
+                wrappedText += char;
+
+                // Handle newlines as hard wraps
+                if (char === '\n') {
+                    lineStartIndex = wrappedText.length;
+                    lastWhitespaceIndex = -1;
+                    continue;
+                }
+
+                if (/\s/.test(char)) {
+                    lastWhitespaceIndex = wrappedText.length - 1;
+                }
+
+                let currentLine = wrappedText.substring(lineStartIndex);
+                let lineWidth = context.measureText(currentLine).width;
+
+                if (lineWidth > MAX_TEXT_WIDTH) {
+                    if (lastWhitespaceIndex >= lineStartIndex) {
+                        // Insert a newline *at* the last whitespace position
+                        wrappedText = wrappedText.substring(0, lastWhitespaceIndex) + '\n' + wrappedText.substring(lastWhitespaceIndex);
+                        lineStartIndex = lastWhitespaceIndex;
+                    } else {
+                        // No whitespace found, but must wrap anyway; insert a newline before the current character to break the line
+                        wrappedText = wrappedText.substring(0, wrappedText.length - 1) + '\n' + char;
+                        lineStartIndex = wrappedText.length;
+                    }
+                    lastWhitespaceIndex = -1;
+                }
+            }
+
+            let visibleText = wrappedText.split('\n');
+            if (visibleText.length > maxLines) {
+                visibleText = visibleText.slice(-maxLines);
+            }
+            for (let line of visibleText) {
+                context.fillText(line, textDisplayParams.TEXT_X_OFFSET, currentY);
+                currentY += textDisplayParams.LINE_HEIGHT;
+            }
+
+            textBuffer = visibleText.join('\n');
+
+            textMesh.material.map.needsUpdate = true;
+        }
+
+        // ---------------------------------------------------------------------------
+        // Setup retrying websocket for binary text in stream
+        // ---------------------------------------------------------------------------
+        function connectWebSocketText() {
+            const socket = new WebSocket(WS_TEXT_URL);
+            socket.binaryType = 'arraybuffer';
+
+            socket.onopen = () => {
+                // Connection opened
+            };
+
+            // Decode incoming text messages from possibly incomplete binary UTF-8 chunks
+            const decoder = new TextDecoder('utf-8', { stream: true });
+
+            socket.onmessage = (event) => {
+                const text = decoder.decode(event.data, { stream: true });
+                if (text) {
+                    // Add text chunk to textBuffer
+                    textBuffer += text;
+
+                    updateTextCanvas();
+
+                    if (text.trim().length !== 0)
+                        playClickSound();
+                }
+            };
+
+            socket.onclose = () => {
+                setTimeout(connectWebSocketText, WS_TEXT_RETRY);
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket text error:', error);
+                socket.close();
+            };
+        }
+
+        // ---------------------------------------------------------------------------
+        // Event handlers
+        // ---------------------------------------------------------------------------
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight); // Update composer size
+            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
+            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
+        }
+
+        function onDocumentMouseMove(event) {
+            if (!cameraLocked) {
+                mouse.x = (event.clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            }
+        }
+
+        function onDocumentMouseLeave(event) {
+            if (!cameraLocked) {
+                targetCameraPosition.copy(initialCameraPosition);
+            }
+        }
+
+        function onDocumentMouseWheel(event) {
+            camera.position.z += event.deltaY * 0.5;
+        }
+
+        function onDocumentTouchStart(event) {
+            if (event.touches.length === 1 && !cameraLocked) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            }
+        }
+
+        function onDocumentTouchMove(event) {
+            if (event.touches.length === 1 && !cameraLocked) {
+                mouse.x = (event.touches[0].clientX - window.innerWidth / 2) * 8;
+                mouse.y = (event.touches[0].clientY - window.innerHeight / 2) * 8;
+                targetCameraPosition.set(mouse.x, -mouse.y, camera.position.z);
+            }
+        }
+
+        function onDocumentKeyDown(event) {
+            if (event.code === 'Space') {
+                cameraLocked = !cameraLocked;
+            } else if (event.code === 'Delete') {
+                textBuffer = "";
+                updateTextCanvas();
+            } else if (event.key === 'm') {
+                toggleMute(!isMuted);
+            } else if (event.key === 'c') {
+                controlsVisible = !controlsVisible;
+                if (controlsVisible) {
+                    gui.show();
+                } else {
+                    gui.hide();
+                }
+            } else if (event.key === 'h') {
+                const infoBox = document.getElementById('infoBox');
+                if (infoBox.style.display === 'none') {
+                    infoBox.style.display = 'block';
+                    edgesVisible = true;
+                } else {
+                    infoBox.style.display = 'none';
+                    edgesVisible = false;
+                }
+                textMeshEdges.visible = edgesVisible;
+            } else if (event.key === 'l') {
+                logControlPanelVariables();
+            }
+        }
+
+        function logControlPanelVariables() {
+            console.log('Current parameters:');
+
+            // Camera position
+            console.log('// Camera position');
+            console.log(`camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});`);
+
+            // Text display parameters
+            console.log('// Text display parameters');
+            for (const [key, value] of Object.entries(textDisplayParams)) {
+                console.log(`const ${key} = ${JSON.stringify(value)};`);
+            }
+
+            // Bloom parameters
+            console.log('// Bloom parameters');
+            console.log(`bloomPass.strength = ${bloomPass.strength};`);
+            console.log(`bloomPass.radius = ${bloomPass.radius};`);
+            console.log(`bloomPass.threshold = ${bloomPass.threshold};`);
+
+            // Sobel Edge Detection
+            console.log('// Sobel Edge Detection');
+            console.log(`effectSobel.enabled = ${effectSobel.enabled};`);
+
+            // Lens Distortion parameters
+            console.log('// Lens Distortion parameters');
+            console.log(`lensDistortionPass.distortion.set(${lensDistortionPass.distortion.x}, ${lensDistortionPass.distortion.y});`);
+            console.log(`lensDistortionPass.principalPoint.set(${lensDistortionPass.principalPoint.x}, ${lensDistortionPass.principalPoint.y});`);
+            console.log(`lensDistortionPass.focalLength.set(${lensDistortionPass.focalLength.x}, ${lensDistortionPass.focalLength.y});`);
+            console.log(`lensDistortionPass.skew = ${lensDistortionPass.skew};`);
+
+            // Audio Gain
+            console.log('// Audio Gain');
+            console.log(`gainNode.gain.value = ${gainNode.gain.value};`);
+        }
+    </script>
+</body>
+</html>
