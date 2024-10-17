@@ -1,5 +1,5 @@
-export DISPLAY=:0
-chromium-browser "$1" \
+#!/bin/bash
+chromium-browser client/pi.html \
   --start-fullscreen \
   --kiosk \
   --incognito \

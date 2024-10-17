@@ -69,9 +69,6 @@ customizations=$(
     echo "--plugin runatboot:script=/home/marnix/ART/CAMERA/code/gedankenpolizei/pisetup/files/firstboot.sh"
 )
 
-echo $customizations
-exit
-
 set -x
 sudo sdm --customize "$img" $args $customizations
 set +x
