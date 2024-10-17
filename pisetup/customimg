@@ -1,0 +1,77 @@
+#!/bin/bash
+# Use [sdm](https://github.com/gitbls/sdm) to setup RPi image
+# Usage: ./customimg <img>
+
+img=$1
+
+args=$(
+    # Extend working memory to 2048 MB
+    # Increase if errors at cost of more sdm runtime
+    echo "--extend --xmb 2048"
+    # Restart after first boot to complete customization
+    echo "--restart"
+    # Immediately exit after customization
+    echo "--batch"
+)
+
+pisetupdir=$(dirname $0)
+projectdir=$pisetupdir/..
+
+customizations=$(
+    # Perform apt update and upgrade (always done)
+    echo ""
+    # Enable SSH
+    echo "--regen-ssh-host-keys"
+    # Set password for 'pi' user
+    echo "--plugin user:setpassword=pi|password=$(cat $pisetupdir/.password)"
+    # Disable pi setup wizard and triggerhappy
+    echo "--plugin disables:piwiz|triggerhappy"
+    # Enable autologin and boot to console
+    echo "--plugin raspiconfig:boot_behavior=B2"
+
+    # UNCOMMENTED THINGS BELOW NOT CHECKED YET
+    # Configure localization settings to the same as this (the host) system
+    #echo "--plugin L10n:host"
+    # Configure verbose boot process
+    #echo "--plugin quietness:noquiet=keep|nosplash=keep"
+    # Enable LED heartbeat flash
+    #echo "--plugin system:ledheartbeat"
+    # Enable trim on SSD
+    #echo "--plugin trim-enable"
+
+    # Configure LCD screen (https://www.waveshare.com/wiki/3.4inch_DSI_LCD_(C))
+    echo "--plugin bootconfig:dtoverlay=vc4-kms-v3d"
+    echo "--plugin bootconfig:dtoverlay=vc4-kms-dsi-waveshare-panel,3_4_inch"
+
+    # Install and remove packages
+    #echo "--plugin apps:remove=@$(realpath $pisetupdir/apt/remove.list)|apps=@$(realpath $pisetupdir/apt/install.list)"
+
+    # ABOVE IS OK
+    # CHECKING BELOW
+
+    # Install websocat
+    #echo "--plugin copyfile:from=$(realpath $pisetupdir/files/websocat)|to=/usr/local/bin/websocat|chmod=755"
+
+    # Copy init files to the home directory
+    #echo "--plugin copyfile:from=$(realpath $pisetupdir/files/.bash_profile)|to=/home/pi/.bash_profile"
+    #echo "--plugin copyfile:from=$(realpath $pisetupdir/files/center_display.py)|to=/home/pi/center_display.py"
+    #echo "--plugin copyfile:from=$(realpath $pisetupdir/files/.xinitrc)|to=/home/pi/.xinitrc|chmod=755"
+
+    # Clone this repo into the home directory (happens at postinstall, which is still before first boot) ...
+    #echo "\"--plugin git-clone:repo=https://github.com/mvsoom/gedankenpolizei.git|gitdir=/home/pi/gedankenpolizei|gitsw=--depth 1 --single-branch --branch raspberrypi|user=pi|gitphase=post-install\""
+    # ... and copy secrets to the git repo
+    #echo "--plugin copyfile:from=$(realpath $projectdir/assets/gen-lang-client.json)|to=/home/pi/gedankenpolizei/assets/gen-lang-client.json|runphase=postinstall|mkdirif"
+    #echo "--plugin copyfile:from=$(realpath $projectdir/.env)|to=/home/pi/gedankenpolizei/.env|runphase=postinstall|mkdirif"
+
+    # Run setup script at first boot as root
+    #echo "--plugin runatboot:script=@$(realpath $pisetupdir/files/firstboot.sh)|output=/var/log/firstboot.log"
+
+    echo "--plugin runatboot:script=/home/marnix/ART/CAMERA/code/gedankenpolizei/pisetup/files/firstboot.sh"
+)
+
+echo $customizations
+exit
+
+set -x
+sudo sdm --customize "$img" $args $customizations
+set +x

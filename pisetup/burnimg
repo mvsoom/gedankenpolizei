@@ -1,0 +1,27 @@
+#!/bin/bash
+# Use [sdm](https://github.com/gitbls/sdm) to burn customized RPi image
+# Usage: ./burnimg <img> <ssd>
+
+img=$1
+ssd=$2
+
+# If ssd is not provided, list options
+if [ -z "$ssd" ]; then
+    echo "Usage: ./burnimg <img> <ssd>"
+    echo "Available SD cards:"
+    lsblk -p -o NAME,SIZE,MODEL | grep -E "sd|mmcblk"
+    exit 1
+fi
+
+args=$(
+    # Enable `ssh pi@raspberrypi.local`
+    echo "--hostname raspberrypi"
+    # Expand the root file system on the SD Card after the burn completes
+    echo "--expand-root"
+)
+
+# Note: burning takes a long time after "dd Copy completed" due to syncing cached writes
+# No problem, just wait
+set -x
+sudo sdm $img --burn "$ssd" $args
+set +x

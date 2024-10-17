@@ -8,6 +8,8 @@ secrets
 data/reddit/subreddit/
 util/
 demo*/
+pisetup/image/
+pisetup/.password
 *.feather
 .env
 GEMINI.md

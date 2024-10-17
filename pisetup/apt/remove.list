@@ -1,0 +1,3 @@
+# Packages to remove from the Raspberry Pi image
+# In terms of disk space, only firefox seems worth it
+firefox

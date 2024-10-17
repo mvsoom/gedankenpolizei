@@ -1,0 +1,14 @@
+#!/bin/bash
+
+IMAGE_URL=https://downloads.raspberrypi.org//raspios_arm64/images/raspios_arm64-2024-07-04/2024-07-04-raspios-bookworm-arm64.img.xz
+
+IMAGE_NAME=$(basename $IMAGE_URL .xz)
+
+# Only download the image if not cached in /tmp
+if [ ! -f /tmp/$IMAGE_NAME ]; then
+    wget -O - $IMAGE_URL | unxz > /tmp/$IMAGE_NAME
+fi
+
+# Copy the image to the script directory
+target=$(dirname $0)/image/$IMAGE_NAME
+cp "/tmp/$IMAGE_NAME" "$target" && echo "Copied fresh image to $target"

@@ -1,0 +1,3 @@
+# Packages to install additionally on the Raspberry Pi image
+python3-screeninfo
+unclutter
