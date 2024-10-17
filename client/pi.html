@@ -80,16 +80,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         <p class="aligned">    [L] log parameters</p>
     </div>
 
-    <!-- This shader colors each point based on the webcam texture -->
-    <script id="fs" type="x-shader/x-fragment">
-        uniform sampler2D map;
-        varying vec2 vUv;
-        void main() {
-            vec4 color = texture2D(map, vUv);
-            gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
-        }
-    </script>
-
     <script type="importmap">
         {
             "imports": {
