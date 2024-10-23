@@ -24,9 +24,9 @@ if not project_id:
 LOCATION = CONFIG("gemini.location")
 MODEL_FLASH_NAME = CONFIG("gemini.model.flash.name")
 
-COST_PER_IMAGE = CONFIG("gemini.model.flash.cost_per_image")
-COST_PER_INPUT_CHAR = CONFIG("gemini.model.flash.cost_per_input_char")
-COST_PER_OUTPUT_CHAR = CONFIG("gemini.model.flash.cost_per_output_char")
+# COST_PER_IMAGE = CONFIG("gemini.model.flash.cost_per_image")
+# COST_PER_INPUT_CHAR = CONFIG("gemini.model.flash.cost_per_input_char")
+# COST_PER_OUTPUT_CHAR = CONFIG("gemini.model.flash.cost_per_output_char")
 
 
 SAFETY_SETTINGS = {

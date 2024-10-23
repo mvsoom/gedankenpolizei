@@ -6,13 +6,11 @@ trap "kill 0" EXIT SIGINT
 # Start the pipeline in the background
 grab/webcam | \
 python -m src.fast.narrate \
-    --config fast.novelty_threshold:10 \
+    --config-file piconfig.yaml \
     --jsonl \
     --output-frames | \
 python -m src.raw.stream \
-    --config raw.memory_size:128 \
-    --config slow.pace:0.5 \
-    --config raw.pace:16 | \
+    --config-file piconfig.yaml | \
 emit/websocket &
 
 # Start chromium-browser in the foreground

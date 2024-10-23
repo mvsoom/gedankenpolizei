@@ -1,0 +1,92 @@
+# Configuration for Raspberry Pi 4 deployment
+# Configuration for tuning and/or shared settings across the system
+log:
+  dir: ./logs
+  level: DEBUG
+  images: false
+
+gemini:
+  location: europe-west1
+  model:
+    flash:
+      name: gemini-1.5-flash-001
+    pro:
+      name: gemini-1.5-pro-001
+
+pinecone:
+  index: v1
+  namespace: slow
+  metadata_size_threshold: 40000 # bytes
+
+slow:
+  embed:
+    model:
+      name: text-multilingual-embedding-002
+      dimension: 768
+      task: SEMANTIC_SIMILARITY
+      
+  reddit:
+    model:
+      name: flash
+
+    vet_prompt_file: data/prompts/slow/vet.prompt
+
+  bias: # Disabled
+    intensity: 0.
+    directions:
+    overall_multiplier: 1.0
+  
+  # The fractional pace of the SLOW stream (0 <= `pace` <= 1)
+  # A value of 1. means the SLOW stream is running at full speed, resulting in a feverish sequence of SLOW thoughts which inhibits completing generated RAW thoughts (and thus requires more generations, which increases LLM API costs)
+  # A value of 0. means the SLOW stream only advances when the current RAW thought is (almost) completed, resulting in less feverish, more coherent RAW thought
+  pace: 0.5
+  
+  walk:
+    max_steps: 10   # How many steps in embedding space before giving up
+    max_memory: 500 # How many accepted SLOW thoughts to remember
+
+fast:
+  # If both dimensions of an image's aspect ratio are less than or equal to 384, then 258 tokens are used (per https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/image-understanding#image-requirements)
+  max_size: [384, 288]  # Can be left empty to disable resizing
+
+  memory:
+    # Number of frames to keep in memory (excludes current `now` frame)
+    max_size: 4
+
+    # Downscale the (-i)th frame by (scaling**i)
+    # Note that Gemini does not charge more for larger images, so this is only useful for speeding up processing
+    scaling: 0.9
+  
+  model:
+    name: flash
+    system_prompt_file: data/prompts/fast/gemini.system_prompt
+    temperature: 0.3
+
+  novelty_threshold: 10  # Ignore narrations with novelty below this threshold
+
+raw:
+  model:
+    name: pro
+    system_prompt_file: data/prompts/raw/gemini.system_prompt
+    prompt_file: data/prompts/raw/gemini.prompt
+    stop_sequences:  # These discourage the MODEL from very occasionally revealing the prompt setup
+      - "```"
+      - "RAW"
+    top_k: 40    # Higher value for more random responses. Max(pro) = 40
+    top_p: 0.95  # Higher value for more random responses
+    temperature: 2.0
+  
+  # Condition a single request with at most `memory_size` chars of the RAW stream
+  # Note: this is approximate as it doesn't take into account thoughts running ahead
+  # Shorter memory (like 32) means increased responsiveness to FAST stream
+  # Longer memory means more preciese semantic direction in SLOW stream
+  memory_size: 128
+
+  # The pace of the RAW stream in average output rate in chars per second
+  pace: 16.
+
+  # Relatve jitter in `pace` (as a fraction of `pace`)
+  jitter: 0.10
+
+  # Condition a single request with at most `max_fast_inputs` FAST narrations
+  max_fast_inputs: 20
