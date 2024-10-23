@@ -78,6 +78,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         <p class="aligned">    [C] toggle controls</p>
         <p class="aligned">    [M] (un)mute</p>
         <p class="aligned">    [L] log parameters</p>
+        <p class="aligned">    [I] toggle invert colors</p>
     </div>
 
     <script type="importmap">
@@ -101,6 +102,30 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
         import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
         import { LensDistortionPassGen } from 'three-lens-distortion';
+
+        // ---------------------------------------------------------------------------
+        // Color Inversion Shader
+        const InvertColorShader = {
+            uniforms: {
+                "tDiffuse": { value: null }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                varying vec2 vUv;
+
+                void main() {
+                    vec4 color = texture2D( tDiffuse, vUv );
+                    gl_FragColor = vec4( vec3( 1.0 - color.rgb ), color.a );
+                }
+            `
+        };
 
         // ---------------------------------------------------------------------------
         // Settings
@@ -132,7 +157,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_RETRY = 500; // msec
 
         // Scene
-        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass;
+        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass, invertColorPass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -143,6 +168,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Variables for PositionalAudio
         let listener, pinkNoise, gainNode, currentGain = AUDIO_GAIN;
         let isMuted = false; // Flag to mute the sound
+        let isColorInverted = false;
 
         // Edge outline for text panel
         let textMeshEdges;
@@ -212,6 +238,11 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 skew: 0.0
             });
             composer.addPass(lensDistortionPass);
+
+            // Invert color pass
+            invertColorPass = new ShaderPass(InvertColorShader);
+            invertColorPass.enabled = true;
+            composer.addPass(invertColorPass);
 
             // Handle user input
             mouse = new THREE.Vector3(0, 0, 1);
@@ -662,6 +693,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 textMeshEdges.visible = edgesVisible;
             } else if (event.key === 'l') {
                 logControlPanelVariables();
+            } else if (event.key === 'i') {
+                isColorInverted = !isColorInverted;
+                invertColorPass.enabled = isColorInverted;
             }
         }
 
