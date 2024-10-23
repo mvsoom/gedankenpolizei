@@ -504,13 +504,16 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                         result += char;
                     }
                 } else {
+                    // TODO: I disabled this for now... fix later
+                    result += char;
+
                     // Randomly decide whether to add a combining mark
-                    if (Math.random() < textDisplayParams.PROB_ELVISH) {
-                        const mark = combiningMarks[Math.floor(Math.random() * combiningMarks.length)];
-                        result += char + mark;
-                    } else {
-                        result += char;
-                    }
+                    //if (Math.random() < 0*textDisplayParams.PROB_ELVISH) {
+                    //    const mark = combiningMarks[Math.floor(Math.random() * combiningMarks.length)];
+                    //    result += char + mark;
+                    //} else {
+                    //    result += char;
+                    //}
                 }
             }
             return result;
@@ -535,7 +538,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             let lineStartIndex = 0;
 
             // Apply Elvish effect to the textBuffer
-            //textBuffer = addElvishEffect(textBuffer);
+            textBuffer = addElvishEffect(textBuffer);
 
             for (let i = 0; i < textBuffer.length; i++) {
                 let char = textBuffer[i];
