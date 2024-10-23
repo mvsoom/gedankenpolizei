@@ -52,7 +52,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             color: var(--text-color);
             border-radius: 5px;
             border: var(--border-style);
-            background-color: rgba(0, 0, 0, 0.5); /* Added background color for better visibility */
+            background-color: rgba(0, 0, 0, 0.5);
         }
 
         #infoBox p {
@@ -101,7 +101,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
         import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
         import { LensDistortionPassGen } from 'three-lens-distortion';
-        import { EdgesGeometry } from 'three';
 
         // ---------------------------------------------------------------------------
         // Settings
@@ -111,16 +110,17 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         let gui; // Declare gui globally
         let controlsVisible = false; // Track the visibility of controls
 
-        // Text display
+        // Text display parameters
         const textDisplayParams = {
-            TEXT_CANVAS_WIDTH: 600,
-            TEXT_CANVAS_HEIGHT: 480,
+            TEXT_CANVAS_WIDTH: 300,
+            TEXT_CANVAS_HEIGHT: 120,
             FONT_SIZE: 20,
-            FONT_FAMILY: 'Arial',
+            FONT_FAMILY: 'Arial Unicode MS, Arial, sans-serif',
             TEXT_STYLE: 'rgba(255, 255, 255, 1.0)',
-            LINE_HEIGHT: 24,
+            LINE_HEIGHT: 19,
             TEXT_X_OFFSET: 20,
             TEXT_Y_OFFSET: 50,
+            PROB_ELVISH: 0.02,
         };
 
         // Audio
@@ -262,6 +262,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             textDisplayFolder.add(textDisplayParams, 'LINE_HEIGHT', 1, 200, 1).name('Line Height').onChange(updateTextCanvas);
             textDisplayFolder.add(textDisplayParams, 'TEXT_X_OFFSET', 0, 500, 1).name('Text X Offset').onChange(updateTextCanvas);
             textDisplayFolder.add(textDisplayParams, 'TEXT_Y_OFFSET', 0, 500, 1).name('Text Y Offset').onChange(updateTextCanvas);
+            textDisplayFolder.add(textDisplayParams, 'PROB_ELVISH', 0, 1, 0.01).name('p(Elvish)').onChange(updateTextCanvas);
             textDisplayFolder.close();
 
             // Add Camera controls to GUI
@@ -366,7 +367,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         // ---------------------------------------------------------------------------
-        // Setup text canvas to display incoming text
+        // Setup text canvas to display incoming text with Elvish effect
         // ---------------------------------------------------------------------------
         function setupTextCanvas() {
             const canvas = document.createElement('canvas');
@@ -415,6 +416,76 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             updateTextCanvas();
         }
 
+        // Helper function to randomly add combining characters and embellish spaces
+        function addElvishEffect(text) {
+            const combiningMarks = [
+                '\u0300', // Grave accent
+                '\u0301', // Acute accent
+                '\u0302', // Circumflex
+                '\u0303', // Tilde
+                '\u0304', // Macron
+                '\u0305', // Overline
+                '\u0306', // Breve
+                '\u0307', // Dot above
+                '\u0308', // Diaeresis
+                '\u030A', // Ring above
+                '\u030B', // Double acute accent
+                '\u030C', // Caron
+                '\u0323', // Dot below
+                '\u0324', // Diaeresis below
+                '\u0325', // Ring below
+                '\u0326', // Comma below
+                '\u0327', // Cedilla
+                '\u0328', // Ogonek
+                '\u0331', // Macron below
+                '\u0332', // Low line (underline)
+                '\u0338', // Long slash overlay
+                '\u0361'  // Double inverted breve
+            ];
+
+            const spaceVariants = [
+                '\u0020', // Space
+                '\u00A0', // Non-breaking space
+                '\u2000', // En quad
+                '\u2001', // Em quad
+                '\u2002', // En space
+                '\u2003', // Em space
+                '\u2004', // Three-per-em space
+                '\u2005', // Four-per-em space
+                '\u2006', // Six-per-em space
+                '\u2007', // Figure space
+                '\u2008', // Punctuation space
+                '\u2009', // Thin space
+                '\u200A', // Hair space
+                '\u202F', // Narrow no-break space
+                '\u205F', // Medium mathematical space
+                '\u3000'  // Ideographic space
+            ];
+
+            let result = '';
+            for (let char of text) {
+                if (char === ' ') {
+                    // Randomly decide whether to replace the space
+                    if (Math.random() < textDisplayParams.PROB_ELVISH) {
+                        const spaceChar = spaceVariants[Math.floor(Math.random() * spaceVariants.length)];
+                        result += spaceChar;
+                    } else {
+                        result += char;
+                    }
+                } else {
+                    // Randomly decide whether to add a combining mark
+                    if (Math.random() < textDisplayParams.PROB_ELVISH) {
+                        const mark = combiningMarks[Math.floor(Math.random() * combiningMarks.length)];
+                        result += char + mark;
+                    } else {
+                        result += char;
+                    }
+                }
+            }
+            return result;
+        }
+
+
         // Update the text canvas with new messages
         function updateTextCanvas() {
             const canvas = textMesh.material.map.image;
@@ -431,6 +502,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             let wrappedText = '';
             let lastWhitespaceIndex = -1;
             let lineStartIndex = 0;
+
+            // Apply Elvish effect to the textBuffer
+            //textBuffer = addElvishEffect(textBuffer);
 
             for (let i = 0; i < textBuffer.length; i++) {
                 let char = textBuffer[i];

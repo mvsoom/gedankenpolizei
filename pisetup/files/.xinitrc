@@ -23,4 +23,4 @@ python center_display.py --primary DSI-1 --secondary HDMI-2
 # Start script within activated project dir (like dev environment)
 cd /home/pi/gedankenpolizei
 source .venv/bin/activate
-scripts/pikiosk.sh 
+scripts/pikiosk.sh
