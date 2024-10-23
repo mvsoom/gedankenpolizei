@@ -114,9 +114,12 @@ def slow_stream(args, slowq):
 def fast_thoughts_from(inputs):
     def gather():
         for input in inputs:
-            dt = time() - input["timestamp"]
             narration = input["narration"]
-            yield f"({dt:.1f}s ago) {narration}"
+            if "timestamp" in input:
+                dt = time() - input["timestamp"]
+                yield f"({dt:.1f}s ago) {narration}"
+            else:
+                yield narration
 
     return "\n".join(gather())
 
