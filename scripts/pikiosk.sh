@@ -13,4 +13,5 @@ chromium-browser client/pi.html \
   --disk-cache-dir=/dev/null \
   --overscroll-history-navigation=0 \
   --disable-pinch \
-  --autoplay-policy=no-user-gesture-required
+  --autoplay-policy=no-user-gesture-required \
+  --remote-debugging-port=9222
