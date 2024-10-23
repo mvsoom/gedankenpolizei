@@ -1,0 +1,50 @@
+# succesful:
+
+[...]
+
+490+1 records out
+8229224960 bytes (8.2 GB, 7.7 GiB) copied, 1611.7 s, 5.1 MB/s
+> dd Copy completed
+> Set new disk ID '0dd2ec09' on '/dev/sda'
+Disk identifier changed from 0x75d6d1b4 to 0x0dd2ec09.
+
+The partition table has been altered.
+Calling ioctl() to re-read partition table.
+Synching disks.
+> Disk ID '0dd2ec09' set successfully with sfdisk
+* Mount device '/dev/sda'
+mount: /dev/sda2 mounted on /mnt/sdm.
+mount: /dev/sda1 mounted on /mnt/sdm/boot/firmware.
+> Flush accumulated burn log messages
+% sdm will use qemu 'aarch64'
+% sdm will use systemd-nspawn on this 64-bit x86-64 host
+  Retry the command with --chroot if this fails
+umount: /mnt/sdm/boot/firmware unmounted
+umount: /mnt/sdm unmounted
+> Expand Root: Expand root partition 'sda2' (ext4) on device '/dev/sda' from (7.7GB, 7.2GiB) to 
+  (15.0GB, 14.0GiB)
+* Mount /dev/sda to resize the root file system
+* Mount device '/dev/sda'
+mount: /dev/sda2 mounted on /mnt/sdm.
+mount: /dev/sda1 mounted on /mnt/sdm/boot/firmware.
+* Resize the ext4 root file system
+% (Ignore 'on-line resizing required' message)
+resize2fs 1.46.5 (30-Dec-2021)
+Filesystem at /dev/sda2 is mounted on /mnt/sdm; online resizing required
+old_desc_blocks = 1, new_desc_blocks = 1
+The filesystem on /dev/sda2 is now 3657728 (4k) blocks long.
+
+> Set MBR rootfs partition ID '0dd2ec09' in cmdline.txt (was 75d6d1b4)
+> Set MBR partition Disk IDs in fstab
+> Disable unneeded RasPiOS firstboot service and /etc/init.d/resize2fs_once
+> Disable regenerate_ssh_host_keys service; sdm FirstBoot will run it instead
+^[[B^[> First System Boot Custom Boot Scripts disabled
+> First System Boot automatic restart enabled
+* Burn Completed
+> Burn elapsed time: 00:27:01
+umount: /mnt/sdm/boot/firmware unmounted
+umount: /mnt/sdm unmounted
+* Storage '/dev/sda' is ready
+
+# probably not succesful:
+

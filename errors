@@ -1,0 +1,20 @@
+# Errors so far
+
+> Run Plugin 'git-clone' (/usr/local/sdm/plugins/git-clone) Phase 1 with arguments: 
+  'user=pi|repo=https://github.com/mvsoom/gedankenpolizei.git|gitdir=/home/pi/gedankenpolizei|gits
+  w=--depth 1 --single-branch --branch raspberrypi'
+* Plugin git-clone: Start Phase 1
+> Plugin git-clone: Clone repo 'https://github.com/mvsoom/gedankenpolizei.git' into 
+  '/home/pi/gedankenpolizei'
+> Plugin git-clone: Run command 'mkdir -p /home/pi/gedankenpolizei' as user 'pi'
+> Plugin git-clone: Run command 'git clone --depth 1 --single-branch --branch raspberrypi 
+  https://github.com/mvsoom/gedankenpolizei.git' as user 'pi'
+fatal: could not create work tree dir 'gedankenpolizei': Permission denied
+
+##
+
+> Plugin copyfile: Process file 
+  '/home/marnix/ART/CAMERA/code/gedankenpolizei/assets/gen-lang-client-0149736153-f18bb7ead8a5.jso
+  n'
+? Plugin copyfile: Destination directory '/home/pi/client.json' does not exist and mkdirif not 
+  specified

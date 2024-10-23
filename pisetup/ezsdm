@@ -1,0 +1,74 @@
+#!/bin/bash
+# Based on https://github.com/gitbls/sdm/blob/master/ezsdm
+# Note: sdm requires absolute paths for all files
+# Invoke as: ./ezsdm /pi/image/2024-07-04-raspios-bookworm-arm64.img
+
+function errexit() {
+    echo -e "$1"
+    exit 1
+}
+
+[ $EUID -eq 0 ] && sudo="" || sudo="sudo"
+
+img="$1"
+
+[ "$(type -t sdm)" == "" ] && errexit "? sdm is not installed"
+
+[ "$sudo" != "" ] && assets="./assets" || assets="/etc/sdm/lopisetup/ezsdmcal-assets"
+[ -f $assets/my.plugins ] &&  mv $assets/my.plugins $assets/my.plugins.1
+
+#################
+# CONFIGURATION #
+#################
+
+BASEDIR=$(dirname "$0")
+
+ROOTDIR=$(realpath "$BASEDIR/..")
+APT_INSTALL=$(realpath "$BASEDIR/apt-install")
+APT_REMOVE=$(realpath "$BASEDIR/apt-remove")
+HOME=$(realpath "$BASEDIR/home")
+
+HOSTNAME=raspberrypi
+USER=pi # Don't change
+PASSWORD=goblinfarmer
+
+REPO=https://github.com/mvsoom/gedankenpolizei.git
+BRANCH=raspberrypi
+
+CLIENTFILE=pi/payload/gen-lang-client-0149736153-f18bb7ead8a5.json
+
+(cat <<EOF
+# Plugin List generated $(date +"%Y-%m-%d %H:%M:%S")
+
+# Clone the repo to the home directory
+git-clone:user=$USER|repo=$REPO|gitdir=/home/$USER/gedankenpolizei|gitsw=--depth 1 --single-branch --branch $BRANCH
+
+# Copy files to the system
+copyfile:from=$HOME/.bash_profile|to=/home/$USER/.bash_profile|runphase=postinstall
+copyfile:from=$HOME/center_display.py|to=/home/$USER/center_display.py|runphase=postinstall
+copyfile:from=$HOME/.xinitrc|to=/home/$USER/.xinitrc|runphase=postinstall|chmod=755
+copyfile:from=$ROOTDIR/assets/gen-lang-client-0149736153-f18bb7ead8a5.json|to=/home/$USER/client.json|runphase=postinstall|mkdirif
+copyfile:from=$ROOTDIR/.env|to=/home/$USER/gedankenpolizei/.env|runphase=postinstall|mkdirif
+
+# Boot scripts
+runatboot:
+runscript:
+
+EOF
+    ) | bash -c "cat >|$assets/my.plugins"
+
+#################
+# MODIFYING IMG #
+#################
+
+$sudo sdm --customize --plugin @$assets/my.plugins --extend --xmb 2048 --restart --regen-ssh-host-keys $img
+
+
+
+
+###############
+# BURNING IMG #
+###############
+
+# TODO
+#$sudo sdm --burn /dev/sda --hostname "$HOSTNAME" --expand-root $IMAGE

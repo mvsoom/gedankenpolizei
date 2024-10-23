@@ -21,7 +21,15 @@ args=$(
 )
 
 # Note: burning takes a long time after "dd Copy completed" due to syncing cached writes
-# No problem, just wait
+# No problem, just wait 35 minutes
+
+# IT SEEMS LIKE FORMATTING SSD FIRST IS NECESSARY TO HAVE THIS WORK
+
 set -x
-sudo sdm $img --burn "$ssd" $args
+# 
+echo Please make sure that the burn device is dismounted before starting the burn. The check in sdm for this is broken at the moment, will be fixed in the next release later this month.
+# https://github.com/gitbls/sdm/issues/259#issuecomment-2419808373
+#sudo sdm $img --burn "$ssd" $args
 set +x
+
+# TODO: Unmount the SD card at $ssd
