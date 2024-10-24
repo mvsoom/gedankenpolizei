@@ -3,6 +3,10 @@
 # Set up a trap to kill all child processes when the script exits or when CTRL-C is pressed
 trap "kill 0" EXIT SIGINT
 
+# Activate project dir (like dev environment)
+cd /home/pi/gedankenpolizei
+source .venv/bin/activate
+
 # Start the pipeline in the background
 grab/webcam | \
 python -m src.fast.narrate \
@@ -15,8 +19,8 @@ emit/websocket &
 
 # Start chromium-browser in the foreground
 chromium-browser client/pi.html \
-  --start-fullscreen \
   --kiosk \
+  --start-fullscreen \
   --incognito \
   --noerrdialogs \
   --disable-translate \

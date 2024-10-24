@@ -20,7 +20,5 @@ xrandr --output HDMI-2 --same-as DSI-1 --auto
 python center_display.py --primary DSI-1 --secondary HDMI-1
 python center_display.py --primary DSI-1 --secondary HDMI-2
 
-# Start script within activated project dir (like dev environment)
-cd /home/pi/gedankenpolizei
-source .venv/bin/activate
-scripts/pikiosk.sh
+# Start script
+/home/pi/gedankenpolizei/scripts/pikiosk.sh
