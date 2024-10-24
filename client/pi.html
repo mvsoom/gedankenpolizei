@@ -78,7 +78,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         <p class="aligned">    [C] toggle controls</p>
         <p class="aligned">    [M] (un)mute</p>
         <p class="aligned">    [L] log parameters</p>
-        <p class="aligned">    [I] toggle invert colors</p>
+        <p class="aligned">    [I] toggle color dipole</p>
+        <p class="aligned">    [H] toggle info box</p>
     </div>
 
     <script type="importmap">
@@ -104,10 +105,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import { LensDistortionPassGen } from 'three-lens-distortion';
 
         // ---------------------------------------------------------------------------
-        // Color Inversion Shader
-        const InvertColorShader = {
+        // Color Dipole Shader
+        const ColorDipoleShader = {
             uniforms: {
-                "tDiffuse": { value: null }
+                "tDiffuse": { value: null },
+                "color1": { value: new THREE.Color(0x000000) },
+                "color2": { value: new THREE.Color(0xffffff) },
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -118,11 +121,14 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             `,
             fragmentShader: `
                 uniform sampler2D tDiffuse;
+                uniform vec3 color1;
+                uniform vec3 color2;
                 varying vec2 vUv;
 
                 void main() {
                     vec4 color = texture2D( tDiffuse, vUv );
-                    gl_FragColor = vec4( vec3( 1.0 - color.rgb ), color.a );
+                    float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                    gl_FragColor = vec4( mix(color2, color1, luminance), color.a );
                 }
             `
         };
@@ -146,6 +152,18 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             TEXT_X_OFFSET: 20,
             TEXT_Y_OFFSET: 50,
             PROB_ELVISH: 0.02,
+            BORDER_WIDTH: 2,
+            BORDER_COLOR: 'rgba(255, 255, 255, 1.0)',
+            BORDER_DASHED: false,
+            BORDER_DASH_SIZE: 10,
+            BORDER_GAP_SIZE: 5,
+        };
+
+        // Color Dipole parameters
+        const colorDipoleParams = {
+            color1: '#000000', // Dark color
+            color2: '#ffffff', // Light color
+            enabled: true,
         };
 
         // Audio
@@ -157,7 +175,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_RETRY = 500; // msec
 
         // Scene
-        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass, invertColorPass;
+        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass, colorDipolePass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -168,11 +186,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Variables for PositionalAudio
         let listener, pinkNoise, gainNode, currentGain = AUDIO_GAIN;
         let isMuted = false; // Flag to mute the sound
-        let isColorInverted = false;
-
-        // Edge outline for text panel
-        let textMeshEdges;
-        let edgesVisible = true; // Control the visibility of edges based on infoBox visibility
 
         window.onload = init;
 
@@ -239,10 +252,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             });
             composer.addPass(lensDistortionPass);
 
-            // Invert color pass
-            invertColorPass = new ShaderPass(InvertColorShader);
-            invertColorPass.enabled = true;
-            composer.addPass(invertColorPass);
+            // Color Dipole pass
+            colorDipolePass = new ShaderPass(ColorDipoleShader);
+            colorDipolePass.uniforms['color1'].value = new THREE.Color(colorDipoleParams.color1);
+            colorDipolePass.uniforms['color2'].value = new THREE.Color(colorDipoleParams.color2);
+            colorDipolePass.enabled = colorDipoleParams.enabled;
+            composer.addPass(colorDipolePass);
 
             // Handle user input
             mouse = new THREE.Vector3(0, 0, 1);
@@ -296,6 +311,28 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             textDisplayFolder.add(textDisplayParams, 'PROB_ELVISH', 0, 1, 0.01).name('p(Elvish)').onChange(updateTextCanvas);
             textDisplayFolder.close();
 
+            // Add Border Settings to GUI
+            const borderFolder = gui.addFolder('Border Settings');
+            borderFolder.add(textDisplayParams, 'BORDER_WIDTH', 0, 20, 1).name('Border Width').onChange(updateTextCanvas);
+            borderFolder.addColor(textDisplayParams, 'BORDER_COLOR').name('Border Color').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_DASHED').name('Dashed').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_DASH_SIZE', 1, 50, 1).name('Dash Size').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_GAP_SIZE', 0, 50, 1).name('Gap Size').onChange(updateTextCanvas);
+            borderFolder.close();
+
+            // Add Color Dipole controls to GUI
+            const colorDipoleFolder = gui.addFolder('Color Dipole');
+            colorDipoleFolder.addColor(colorDipoleParams, 'color1').name('Color 1').onChange(() => {
+                colorDipolePass.uniforms['color1'].value.set(colorDipoleParams.color1);
+            });
+            colorDipoleFolder.addColor(colorDipoleParams, 'color2').name('Color 2').onChange(() => {
+                colorDipolePass.uniforms['color2'].value.set(colorDipoleParams.color2);
+            });
+            colorDipoleFolder.add(colorDipoleParams, 'enabled').name('Enable').onChange(() => {
+                colorDipolePass.enabled = colorDipoleParams.enabled;
+            });
+            colorDipoleFolder.close();
+
             // Add Camera controls to GUI
             const cameraFolder = gui.addFolder('Camera');
             cameraFolder.add(cameraParams, 'positionX').name('Position X').onChange(updateCameraPosition);
@@ -338,7 +375,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             const gainControl = audioFolder.add(gainNode.gain, 'value', 0.0, AUDIO_GAIN * 2, 1).name('Volume').listen();
             gainControl.onChange((value) => {
                 if (!isMuted) {
-                    currentGain = AUDIO_GAIN; // Update current gain value when not muted
+                    currentGain = gainNode.gain.value; // Update current gain value when not muted
                 }
             });
             audioFolder.close();
@@ -418,17 +455,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             textMesh.position.set(0, 0, 100);
             scene.add(textMesh);
 
-            // Create edges for the textMesh
-            const edgesGeometry = new THREE.EdgesGeometry(textMesh.geometry);
-            const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-            textMeshEdges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
-            textMeshEdges.position.copy(textMesh.position);
-            scene.add(textMeshEdges);
-
-            // Initially set edges visibility based on infoBox visibility
-            const infoBox = document.getElementById('infoBox');
-            edgesVisible = infoBox.style.display !== 'none';
-            textMeshEdges.visible = edgesVisible;
+            updateTextCanvas(); // Initial rendering
         }
 
         function updateTextCanvasDimensions() {
@@ -438,11 +465,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             canvas.height = textDisplayParams.TEXT_CANVAS_HEIGHT;
             textMesh.geometry = new THREE.PlaneGeometry(textDisplayParams.TEXT_CANVAS_WIDTH, textDisplayParams.TEXT_CANVAS_HEIGHT);
             textMesh.material.map.needsUpdate = true;
-
-            // Update edges geometry
-            const edgesGeometry = new THREE.EdgesGeometry(textMesh.geometry);
-            textMeshEdges.geometry.dispose();
-            textMeshEdges.geometry = edgesGeometry;
 
             updateTextCanvas();
         }
@@ -506,25 +528,28 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 } else {
                     // TODO: I disabled this for now... fix later
                     result += char;
-
-                    // Randomly decide whether to add a combining mark
-                    //if (Math.random() < 0*textDisplayParams.PROB_ELVISH) {
-                    //    const mark = combiningMarks[Math.floor(Math.random() * combiningMarks.length)];
-                    //    result += char + mark;
-                    //} else {
-                    //    result += char;
-                    //}
                 }
             }
             return result;
         }
-
 
         // Update the text canvas with new messages
         function updateTextCanvas() {
             const canvas = textMesh.material.map.image;
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw border
+            context.lineWidth = textDisplayParams.BORDER_WIDTH;
+            context.strokeStyle = textDisplayParams.BORDER_COLOR;
+            if (textDisplayParams.BORDER_DASHED) {
+                context.setLineDash([textDisplayParams.BORDER_DASH_SIZE, textDisplayParams.BORDER_GAP_SIZE]);
+            } else {
+                context.setLineDash([]);
+            }
+            context.strokeRect(0, 0, canvas.width, canvas.height);
+
+            // Draw text
             context.font = `bold ${textDisplayParams.FONT_SIZE}px ${textDisplayParams.FONT_FAMILY}`;
             context.fillStyle = textDisplayParams.TEXT_STYLE;
             context.textAlign = 'left';
@@ -688,17 +713,14 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 const infoBox = document.getElementById('infoBox');
                 if (infoBox.style.display === 'none') {
                     infoBox.style.display = 'block';
-                    edgesVisible = true;
                 } else {
                     infoBox.style.display = 'none';
-                    edgesVisible = false;
                 }
-                textMeshEdges.visible = edgesVisible;
             } else if (event.key === 'l') {
                 logControlPanelVariables();
             } else if (event.key === 'i') {
-                isColorInverted = !isColorInverted;
-                invertColorPass.enabled = isColorInverted;
+                colorDipoleParams.enabled = !colorDipoleParams.enabled;
+                colorDipolePass.enabled = colorDipoleParams.enabled;
             }
         }
 
@@ -712,7 +734,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Text display parameters
             console.log('// Text display parameters');
             for (const [key, value] of Object.entries(textDisplayParams)) {
-                console.log(`const ${key} = ${JSON.stringify(value)};`);
+                console.log(`textDisplayParams.${key} = ${JSON.stringify(value)};`);
             }
 
             // Bloom parameters
@@ -735,6 +757,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Audio Gain
             console.log('// Audio Gain');
             console.log(`gainNode.gain.value = ${gainNode.gain.value};`);
+
+            // Color Dipole parameters
+            console.log('// Color Dipole parameters');
+            console.log(`colorDipoleParams.color1 = ${JSON.stringify(colorDipoleParams.color1)};`);
+            console.log(`colorDipoleParams.color2 = ${JSON.stringify(colorDipoleParams.color2)};`);
+            console.log(`colorDipoleParams.enabled = ${colorDipoleParams.enabled};`);
         }
     </script>
 </body>
