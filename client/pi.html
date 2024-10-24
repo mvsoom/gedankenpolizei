@@ -163,6 +163,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Controls GUI
         let gui; // Declare gui globally
         let controlsVisible = false; // Track the visibility of controls
+        const cameraSpeed = 10; // Speed of camera nudge
 
         // Text display parameters
         const textDisplayParams = {
@@ -766,7 +767,20 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 logControlPanelVariables();
             } else if (event.key === 'i') {
                 invertColorPass.enabled = !invertColorPass.enabled;
+            } else if (event.key === 'ArrowUp') {
+                nudgeCamera(0, cameraSpeed); // Nudge camera up
+            } else if (event.key === 'ArrowDown') {
+                nudgeCamera(0, -cameraSpeed); // Nudge camera down
+            } else if (event.key === 'ArrowLeft') {
+                nudgeCamera(-cameraSpeed, 0); // Nudge camera left
+            } else if (event.key === 'ArrowRight') {
+                nudgeCamera(cameraSpeed, 0); // Nudge camera right
             }
+        }
+
+        function nudgeCamera(xAmount, yAmount) {
+            camera.position.x += xAmount;
+            camera.position.y += yAmount;
         }
 
         function logControlPanelVariables() {
