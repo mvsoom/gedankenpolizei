@@ -78,7 +78,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         <p class="aligned">    [C] toggle controls</p>
         <p class="aligned">    [M] (un)mute</p>
         <p class="aligned">    [L] log parameters</p>
-        <p class="aligned">    [I] toggle color dipole</p>
+        <p class="aligned">    [I] toggle invert colors</p>
         <p class="aligned">    [H] toggle info box</p>
     </div>
 
@@ -133,6 +133,30 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         };
 
         // ---------------------------------------------------------------------------
+        // Invert Color Shader
+        const InvertColorShader = {
+            uniforms: {
+                "tDiffuse": { value: null }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                varying vec2 vUv;
+
+                void main() {
+                    vec4 color = texture2D( tDiffuse, vUv );
+                    gl_FragColor = vec4( vec3( 1.0 - color.rgb ), color.a );
+                }
+            `
+        };
+
+        // ---------------------------------------------------------------------------
         // Settings
         // ---------------------------------------------------------------------------
 
@@ -152,12 +176,12 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             TEXT_Y_OFFSET: 50,
             PROB_ELVISH: 0.02,
             BORDER_WIDTH: 2,
-            BORDER_COLOR: 'rgba(255, 255, 255, 1.0)',
             BORDER_DASHED: false,
             BORDER_DASH_SIZE: 10,
             BORDER_GAP_SIZE: 5,
             BORDER_COUNT: 1,
             BORDER_SPACING: 5,
+            BORDER_RADIUS: 0,
         };
 
         // Color Dipole parameters
@@ -176,7 +200,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_RETRY = 500; // msec
 
         // Scene
-        let scene, camera, renderer, composer, bloomPass, lensDistortionPass, colorDipolePass;
+        let scene, camera, renderer, composer, bloomPass, lensDistortionPass, colorDipolePass, invertColorPass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -253,6 +277,11 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             colorDipolePass.enabled = colorDipoleParams.enabled;
             composer.addPass(colorDipolePass);
 
+            // Invert Color pass
+            invertColorPass = new ShaderPass(InvertColorShader);
+            invertColorPass.enabled = false; // Start with it disabled
+            composer.addPass(invertColorPass);
+
             // Handle user input
             mouse = new THREE.Vector3(0, 0, 1);
             document.addEventListener('mousemove', onDocumentMouseMove);
@@ -305,7 +334,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             borderFolder.add(textDisplayParams, 'BORDER_COUNT', 0, 10, 1).name('Border Count').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_SPACING', 0, 50, 1).name('Border Spacing').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_WIDTH', 1, 20, 1).name('Border Width').onChange(updateTextCanvas);
-            borderFolder.addColor(textDisplayParams, 'BORDER_COLOR').name('Border Color').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_RADIUS', 0, 50, 1).name('Border Radius').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_DASHED').name('Dashed').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_DASH_SIZE', 1, 50, 1).name('Dash Size').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_GAP_SIZE', 0, 50, 1).name('Gap Size').onChange(updateTextCanvas);
@@ -460,6 +489,21 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             updateTextCanvas();
         }
 
+        // Helper function to draw rounded rectangles
+        function drawRoundedRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
         // Helper function to randomly add combining characters and embellish spaces
         function addElvishEffect(text) {
             const combiningMarks = [
@@ -535,18 +579,21 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
                 for (let i = 0; i < textDisplayParams.BORDER_COUNT; i++) {
                     let offset = i * (textDisplayParams.BORDER_SPACING + textDisplayParams.BORDER_WIDTH);
                     context.lineWidth = textDisplayParams.BORDER_WIDTH;
-                    context.strokeStyle = textDisplayParams.BORDER_COLOR;
+                    context.strokeStyle = textDisplayParams.TEXT_STYLE; // Use text color for border
                     if (textDisplayParams.BORDER_DASHED) {
                         context.setLineDash([textDisplayParams.BORDER_DASH_SIZE, textDisplayParams.BORDER_GAP_SIZE]);
                     } else {
                         context.setLineDash([]);
                     }
-                    context.strokeRect(
+                    drawRoundedRect(
+                        context,
                         offset + textDisplayParams.BORDER_WIDTH / 2,
                         offset + textDisplayParams.BORDER_WIDTH / 2,
                         canvas.width - 2 * offset - textDisplayParams.BORDER_WIDTH,
-                        canvas.height - 2 * offset - textDisplayParams.BORDER_WIDTH
+                        canvas.height - 2 * offset - textDisplayParams.BORDER_WIDTH,
+                        textDisplayParams.BORDER_RADIUS
                     );
+                    context.stroke();
                 }
             }
 
@@ -718,8 +765,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             } else if (event.key === 'l') {
                 logControlPanelVariables();
             } else if (event.key === 'i') {
-                colorDipoleParams.enabled = !colorDipoleParams.enabled;
-                colorDipolePass.enabled = colorDipoleParams.enabled;
+                invertColorPass.enabled = !invertColorPass.enabled;
             }
         }
 
@@ -758,6 +804,10 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             console.log(`colorDipoleParams.color1 = ${JSON.stringify(colorDipoleParams.color1)};`);
             console.log(`colorDipoleParams.color2 = ${JSON.stringify(colorDipoleParams.color2)};`);
             console.log(`colorDipoleParams.enabled = ${colorDipoleParams.enabled};`);
+
+            // Invert Color Pass
+            console.log('// Invert Color Pass');
+            console.log(`invertColorPass.enabled = ${invertColorPass.enabled};`);
         }
     </script>
 </body>
