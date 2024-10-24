@@ -8,7 +8,7 @@ cd /home/pi/gedankenpolizei
 source .venv/bin/activate
 
 # Start the pipeline in the background
-grab/webcam | \
+#grab/webcam | \
 python -m src.fast.narrate \
     --config-file piconfig.yaml \
     --jsonl \

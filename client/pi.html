@@ -43,6 +43,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         #infoBox {
+            display: none;
             position: absolute;
             bottom: 10px;
             right: 10px;
@@ -165,12 +166,15 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         let controlsVisible = false; // Track the visibility of controls
         const cameraSpeed = 10; // Speed of camera nudge
 
-        // Text display parameters
+        // Camera position
+        const initialCameraPosition = new THREE.Vector3(-3.984445903689256, 4.017602870883579, 634.5194463607997);
+
+        // Text and border display parameters
         const textDisplayParams = {
             TEXT_CANVAS_WIDTH: 300,
             TEXT_CANVAS_HEIGHT: 120,
             FONT_SIZE: 20,
-            FONT_FAMILY: 'Arial Unicode MS, Arial, sans-serif',
+            FONT_FAMILY: 'Ubuntu Mono',
             TEXT_STYLE: 'rgba(255, 255, 255, 1.0)',
             LINE_HEIGHT: 19,
             TEXT_X_OFFSET: 20,
@@ -185,6 +189,23 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             BORDER_RADIUS: 0,
         };
 
+        // Bloom
+        const BLOOM_STRENGTH = 1.5;
+        const BLOOM_RADIUS = 0.4;
+        const BLOOM_THRESHOLD = 0.85;
+
+        // Lens distortion
+        const LENS_DISTORTION_PARAMS = {
+            distortion: new THREE.Vector2(0.1, 0.1),
+            principalPoint: new THREE.Vector2(0.0, 0.0),
+            focalLength: new THREE.Vector2(1.0, 1.0),
+            skew: 0.0
+        };
+
+        // Audio
+        const AUDIO_GAIN = 5.0;
+        const CLICK_SOUND_DURATION = 80; // msec
+
         // Color Dipole parameters
         const colorDipoleParams = {
             color1: '#000000', // Dark color
@@ -192,10 +213,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             enabled: true,
         };
 
-        // Audio
-        const AUDIO_GAIN = 5.0;
-        const CLICK_SOUND_DURATION = 80; // msec
-
+        // Invert Color Pass
+        const INVERT_COLORS_ENABLED = true;
+        
         // Websocket
         const WS_TEXT_URL = 'ws://localhost:8766';
         const WS_TEXT_RETRY = 500; // msec
@@ -203,8 +223,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         // Scene
         let scene, camera, renderer, composer, bloomPass, lensDistortionPass, colorDipolePass, invertColorPass;
         let mouse, center;
-        const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
         let targetCameraPosition = initialCameraPosition.clone();
+
         let textMesh;
         let textBuffer = ""; // Buffer for incoming text
         let cameraLocked = true; // Flag to lock the camera
@@ -251,9 +271,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             // Bloom pass
             bloomPass = new UnrealBloomPass(
                 new THREE.Vector2(window.innerWidth, window.innerHeight),
-                1.5, // Strength
-                0.4, // Radius
-                0.85 // Threshold
+                BLOOM_STRENGTH,
+                BLOOM_RADIUS,
+                BLOOM_THRESHOLD
             );
             composer.addPass(bloomPass);
 
@@ -263,12 +283,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
             // Lens distortion
             const LensDistortionPass = LensDistortionPassGen({ THREE, Pass, FullScreenQuad });
-            lensDistortionPass = new LensDistortionPass({
-                distortion: new THREE.Vector2(0.1, 0.1),
-                principalPoint: new THREE.Vector2(0.0, 0.0),
-                focalLength: new THREE.Vector2(1.0, 1.0),
-                skew: 0.0
-            });
+            lensDistortionPass = new LensDistortionPass(LENS_DISTORTION_PARAMS);
             composer.addPass(lensDistortionPass);
 
             // Color Dipole pass
@@ -280,7 +295,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
             // Invert Color pass
             invertColorPass = new ShaderPass(InvertColorShader);
-            invertColorPass.enabled = false; // Start with it disabled
+            invertColorPass.enabled = INVERT_COLORS_ENABLED;
             composer.addPass(invertColorPass);
 
             // Handle user input
@@ -480,15 +495,29 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         }
 
         function updateTextCanvasDimensions() {
-            // Update canvas dimensions and mesh geometry
-            const canvas = textMesh.material.map.image;
+            // Dispose of the old texture
+            textMesh.material.map.dispose();
+
+            // Create a new canvas with the updated dimensions
+            const canvas = document.createElement('canvas');
             canvas.width = textDisplayParams.TEXT_CANVAS_WIDTH;
             canvas.height = textDisplayParams.TEXT_CANVAS_HEIGHT;
-            textMesh.geometry = new THREE.PlaneGeometry(textDisplayParams.TEXT_CANVAS_WIDTH, textDisplayParams.TEXT_CANVAS_HEIGHT);
-            textMesh.material.map.needsUpdate = true;
 
+            // Create a new texture from the new canvas
+            const textTexture = new THREE.CanvasTexture(canvas);
+            textTexture.needsUpdate = true;
+
+            // Update the material with the new texture
+            textMesh.material.map = textTexture;
+
+            // Update the geometry with the new dimensions
+            textMesh.geometry.dispose();
+            textMesh.geometry = new THREE.PlaneGeometry(textDisplayParams.TEXT_CANVAS_WIDTH, textDisplayParams.TEXT_CANVAS_HEIGHT);
+
+            // Re-render the text on the new canvas
             updateTextCanvas();
         }
+
 
         // Helper function to draw rounded rectangles
         function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -612,7 +641,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             let lineStartIndex = 0;
 
             // Apply Elvish effect to the textBuffer
-            textBuffer = addElvishEffect(textBuffer);
+            //textBuffer = addElvishEffect(textBuffer);
 
             for (let i = 0; i < textBuffer.length; i++) {
                 let char = textBuffer[i];
