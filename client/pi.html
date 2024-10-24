@@ -101,7 +101,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
-        import { SobelOperatorShader } from 'three/addons/shaders/SobelOperatorShader.js';
         import { LensDistortionPassGen } from 'three-lens-distortion';
 
         // ---------------------------------------------------------------------------
@@ -157,6 +156,8 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             BORDER_DASHED: false,
             BORDER_DASH_SIZE: 10,
             BORDER_GAP_SIZE: 5,
+            BORDER_COUNT: 1,
+            BORDER_SPACING: 5,
         };
 
         // Color Dipole parameters
@@ -175,7 +176,7 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
         const WS_TEXT_RETRY = 500; // msec
 
         // Scene
-        let scene, camera, renderer, composer, bloomPass, effectSobel, lensDistortionPass, colorDipolePass;
+        let scene, camera, renderer, composer, bloomPass, lensDistortionPass, colorDipolePass;
         let mouse, center;
         const initialCameraPosition = new THREE.Vector3(-63.984445903689256, 64.01760287088358, 686.1194448349208);
         let targetCameraPosition = initialCameraPosition.clone();
@@ -235,13 +236,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             const effectGrayScale = new ShaderPass(LuminosityShader);
             composer.addPass(effectGrayScale);
 
-            // Sobel operator
-            effectSobel = new ShaderPass(SobelOperatorShader);
-            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
-            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
-            effectSobel.enabled = false;
-            composer.addPass(effectSobel);
-
             // Lens distortion
             const LensDistortionPass = LensDistortionPassGen({ THREE, Pass, FullScreenQuad });
             lensDistortionPass = new LensDistortionPass({
@@ -282,11 +276,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             bloomFolder.add(bloomPass, 'threshold', 0, 1, 0.01).name('Threshold');
             bloomFolder.close();
 
-            // Add Sobel edge detection enable/disable control to GUI
-            const sobelFolder = gui.addFolder('Sobel Edge Detection');
-            sobelFolder.add(effectSobel, 'enabled').name('Enable');
-            sobelFolder.close();
-
             // Add lens distortion controls to GUI
             const lensDistortionFolder = gui.addFolder('Lens Distortion');
             lensDistortionFolder.add(lensDistortionPass.distortion, 'x', -1, 1, 0.01).name('Distortion X');
@@ -313,7 +302,9 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
 
             // Add Border Settings to GUI
             const borderFolder = gui.addFolder('Border Settings');
-            borderFolder.add(textDisplayParams, 'BORDER_WIDTH', 0, 20, 1).name('Border Width').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_COUNT', 0, 10, 1).name('Border Count').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_SPACING', 0, 50, 1).name('Border Spacing').onChange(updateTextCanvas);
+            borderFolder.add(textDisplayParams, 'BORDER_WIDTH', 1, 20, 1).name('Border Width').onChange(updateTextCanvas);
             borderFolder.addColor(textDisplayParams, 'BORDER_COLOR').name('Border Color').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_DASHED').name('Dashed').onChange(updateTextCanvas);
             borderFolder.add(textDisplayParams, 'BORDER_DASH_SIZE', 1, 50, 1).name('Dash Size').onChange(updateTextCanvas);
@@ -539,15 +530,25 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw border
-            context.lineWidth = textDisplayParams.BORDER_WIDTH;
-            context.strokeStyle = textDisplayParams.BORDER_COLOR;
-            if (textDisplayParams.BORDER_DASHED) {
-                context.setLineDash([textDisplayParams.BORDER_DASH_SIZE, textDisplayParams.BORDER_GAP_SIZE]);
-            } else {
-                context.setLineDash([]);
+            // Draw borders
+            if (textDisplayParams.BORDER_COUNT > 0) {
+                for (let i = 0; i < textDisplayParams.BORDER_COUNT; i++) {
+                    let offset = i * (textDisplayParams.BORDER_SPACING + textDisplayParams.BORDER_WIDTH);
+                    context.lineWidth = textDisplayParams.BORDER_WIDTH;
+                    context.strokeStyle = textDisplayParams.BORDER_COLOR;
+                    if (textDisplayParams.BORDER_DASHED) {
+                        context.setLineDash([textDisplayParams.BORDER_DASH_SIZE, textDisplayParams.BORDER_GAP_SIZE]);
+                    } else {
+                        context.setLineDash([]);
+                    }
+                    context.strokeRect(
+                        offset + textDisplayParams.BORDER_WIDTH / 2,
+                        offset + textDisplayParams.BORDER_WIDTH / 2,
+                        canvas.width - 2 * offset - textDisplayParams.BORDER_WIDTH,
+                        canvas.height - 2 * offset - textDisplayParams.BORDER_WIDTH
+                    );
+                }
             }
-            context.strokeRect(0, 0, canvas.width, canvas.height);
 
             // Draw text
             context.font = `bold ${textDisplayParams.FONT_SIZE}px ${textDisplayParams.FONT_FAMILY}`;
@@ -656,8 +657,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight); // Update composer size
-            effectSobel.uniforms['resolution'].value.x = window.innerWidth * window.devicePixelRatio;
-            effectSobel.uniforms['resolution'].value.y = window.innerHeight * window.devicePixelRatio;
         }
 
         function onDocumentMouseMove(event) {
@@ -742,10 +741,6 @@ Script is heavily based on three.js examples: https://threejs.org/examples/
             console.log(`bloomPass.strength = ${bloomPass.strength};`);
             console.log(`bloomPass.radius = ${bloomPass.radius};`);
             console.log(`bloomPass.threshold = ${bloomPass.threshold};`);
-
-            // Sobel Edge Detection
-            console.log('// Sobel Edge Detection');
-            console.log(`effectSobel.enabled = ${effectSobel.enabled};`);
 
             // Lens Distortion parameters
             console.log('// Lens Distortion parameters');
